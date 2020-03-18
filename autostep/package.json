@@ -1,0 +1,25 @@
+{
+    "name": "autostep",
+    "displayName": "AutoStep",
+    "description": "AutoStep BDD Testing Support",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.43.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "autostep",
+            "aliases": ["AutoStep Tests", "autostep"],
+            "extensions": [".as"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "autostep",
+            "scopeName": "source.autostep",
+            "path": "./syntaxes/autostep.tmLanguage.json"
+        }]
+    }
+}
