@@ -1,0 +1,162 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "AutoStep Interactions",
+	"patterns": [
+		{
+			"include": "#trait-opener"
+		},
+		{
+			"include": "#component-opener"
+		},
+		{
+			"include": "#method"
+		},
+		{ 
+			"include": "#method-sep"
+		},
+		{
+			"include": "#step-define"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#property"
+		},
+		{
+			"include": "#needs-defining"
+		}
+	],
+	"repository": {
+		"comments": {
+			"patterns": [{
+				"name": "comment.line.number-sign",
+				"match": "##?[^\\r\\n]*$"
+			}]
+		},
+		"step-define": {
+			"name": "entity.stepdefine.autostep",
+			"patterns": [{
+				"begin": "(Step):",
+				"beginCaptures": {
+					"1": { "name": "keyword.autostep" }
+				},
+				"contentName": "entity.step.autostep.text",
+				"end": "[\\r\\n]",
+				"patterns": [
+				{
+					"match": "\\b(Given|When|Then)\\b",
+					"name": "keyword.autostep"	
+				},
+				{
+					"include": "#component-placeholder"
+				},
+				{
+					"include": "#step-arg"
+				},
+				{
+					"include": "#comments"
+				}]
+			}]
+		},
+		"property": {
+			"begin": "([A-Za-z][A-Za-z0-9-]*):",
+			"beginCaptures": {
+				"1": { "name": "support.type.property-name" }
+			},
+			"patterns": [{
+				"name": "string.quoted.single",
+				"match": "'.+?'"
+			},{
+				"name": "string.quoted.double",
+				"match": "\".+?\""
+			},{
+				"name": "variable.name",
+				"match": "[A-Za-z][A-Za-z0-9-]*"
+			}],
+			"end": "[#\\r\\n]"
+		},
+		"trait-opener": {
+			"patterns": [{
+				"begin": "^\\s*(Trait):",
+				"end": "[#\\r\\n]",
+				"beginCaptures": {
+					"1": { "name": "keyword.autostep.trait" }					
+				},
+				"patterns": [{
+					"name": "entity.name",
+					"match": "([A-Za-z][A-Za-z0-9-]*)"
+				}, {
+					"name": "keyword.operator",
+					"match": "\\+"
+				}]
+			}]
+		},
+		"component-opener": {
+			"patterns": [{
+				"match": "^\\s*(Component):\\s*([A-Za-z][A-Za-z0-9-]*)\\b",
+				"captures": {
+					"1": { "name": "keyword.autostep.component" },
+					"2": { "name": "entity.name"}
+				}
+			}]
+		},
+		"method-sep": {
+			"name": "keyword.operator",
+			"match": "->"
+		},
+		"method": {
+			"begin": "([A-Za-z][A-Za-z0-9-]*)\\s*\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"1": { "name" : "variable.function"}
+			},
+			"patterns": [{
+				"include": "#comments"
+			},{
+				"name": "constant",
+				"match": "[A-Z]+" 
+			},{
+				"name": "variable.parameter",
+				"match": "[A-Za-z][A-Za-z0-9-]*"
+			},{
+				"name": "constant.numeric",
+				"match": "\\d+\\.\\d*"
+			},{
+				"name": "constant.numeric",
+				"match": "\\d+"
+			},{
+				"name": "string.quoted.single",
+				"begin": "'",
+				"patterns": [{
+					"include": "#var-ref"
+				}],
+				"end": "'"
+			},{
+				"name": "string.quoted.double",
+				"begin": "\"",
+				"patterns": [{
+					"include": "#var-ref"
+				}],
+				"end": "\""
+			}]
+		},
+		"needs-defining": {
+			"name": "support.other",
+			"match": "needs-defining"
+		},
+		"step-arg": {
+			"name": "variable.parameter.autostep",
+			"match": "{.+?}"
+		},
+		"var-ref": {
+			"name": "variable.name.autostep",
+			"match": "<.+?>"
+		},
+		"component-placeholder": {
+			"name": "constant.language",
+			"match": "\\$component\\$"
+		}
+	},
+	"scopeName": "source.autostepinteraction"
+}

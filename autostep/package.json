@@ -10,7 +10,8 @@
         "Programming Languages"
     ],
     "activationEvents": [
-        "onLanguage:autostep"
+        "onLanguage:autostep",
+        "onLanguage:autostep-interaction"
     ],
     "enableProposedApi": true,
     "main": "./out/extension.js",
@@ -48,7 +49,18 @@
                 "extensions": [
                     ".as"
                 ],
-                "configuration": "./language-configuration.json"
+                "configuration": "./test-language-configuration.json"
+            },
+            {
+                "id": "autostep-interaction",
+                "aliases": [
+                    "AutoStep Interactions",
+                    "autostep-interaction"
+                ],
+                "extensions": [
+                    ".asi"
+                ],
+                "configuration": "./interaction-language-configuration.json"
             }
         ],
         "grammars": [
@@ -56,6 +68,11 @@
                 "language": "autostep",
                 "scopeName": "source.autostep",
                 "path": "./syntaxes/autostep.tmLanguage.json"
+            },
+            {
+                "language": "autostep-interaction",
+                "scopeName": "source.autostepinteraction",
+                "path": "./syntaxes/autostep-interaction.tmLanguage.json"
             }
         ]
     },

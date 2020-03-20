@@ -42,7 +42,7 @@
 			"beginCaptures": {
 				"1": { "name": "keyword.operator.autostep" }
 			},
-			"contentName": "entity.annotation.autostep.text",
+			"contentName": "meta.type.annotation",
 			"end": "[\\r\\n]",
 			"patterns": [{
 				"include": "#comments"
