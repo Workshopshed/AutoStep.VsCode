@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoStep.LanguageServer", "src\AutoStep.LanguageServer\AutoStep.LanguageServer.csproj", "{89BF9718-19C1-4B60-B45B-95D5221804DD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3846FD7F-F778-4256-A5AF-C7E5F5DC8093}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D26B1DD5-3E69-47AA-97DB-EA3C32E310DE}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		NuGet.config = NuGet.config
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{89BF9718-19C1-4B60-B45B-95D5221804DD} = {3846FD7F-F778-4256-A5AF-C7E5F5DC8093}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AF3F0223-EB51-4BB0-9E97-FC02F90C190E}
+	EndGlobalSection
+EndGlobal

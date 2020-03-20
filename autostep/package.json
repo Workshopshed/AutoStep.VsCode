@@ -9,17 +9,67 @@
     "categories": [
         "Programming Languages"
     ],
+    "activationEvents": [
+        "onLanguage:autostep"
+    ],
+    "enableProposedApi": true,
+    "main": "./out/extension.js",
+    "configuration": {
+        "type": "object",
+        "title": "AutoStep Configuration",
+        "properties": {
+            "autostep.maxNumberOfProblems": {
+                "scope": "resource",
+                "type": "number",
+                "default": 100,
+                "description": "Controls the maximum number of problems produced by the server."
+            },
+            "autostep.trace.server": {
+                "scope": "window",
+                "type": "string",
+                "enum": [
+                    "off",
+                    "messages",
+                    "verbose"
+                ],
+                "default": "off",
+                "description": "Traces the communication between VS Code and the language server."
+            }
+        }
+    },
     "contributes": {
-        "languages": [{
-            "id": "autostep",
-            "aliases": ["AutoStep Tests", "autostep"],
-            "extensions": [".as"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "autostep",
-            "scopeName": "source.autostep",
-            "path": "./syntaxes/autostep.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "autostep",
+                "aliases": [
+                    "AutoStep Tests",
+                    "autostep"
+                ],
+                "extensions": [
+                    ".as"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "autostep",
+                "scopeName": "source.autostep",
+                "path": "./syntaxes/autostep.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "lint": "tslint -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/node": "^10.14.17",
+        "@types/vscode": "^1.43.0",
+        "tslint": "^5.16.0",
+        "typescript": "^3.5.1",
+        "vscode-languageclient": "^4.1.4"
     }
 }

@@ -2,30 +2,149 @@
 	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
 	"name": "AutoStep Tests",
 	"patterns": [
-		{
-			"include": "#keywords"
+		{  
+			"include": "#annotation"
 		},
 		{
-			"include": "#strings"
+			"include": "#feature-opener"
+		},
+		{
+			"include": "#scenario-opener"
+		},
+		{
+			"include": "#background-opener"
+		},
+		{
+			"include": "#examples-opener"
+		},
+		{
+			"include": "#step-define"
+		},
+		{
+			"include": "#step-ref"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#table"
 		}
 	],
 	"repository": {
-		"keywords": {
+		"comments": {
 			"patterns": [{
-				"name": "keyword.control.autostep",
-				"match": "\\b(if|while|for|return)\\b"
+				"name": "comment.line.number-sign",
+				"match": "#[^\\r\\n]*$"
 			}]
 		},
-		"strings": {
-			"name": "string.quoted.double.autostep",
-			"begin": "\"",
-			"end": "\"",
+		"annotation": {
+			"begin": "\\s*([@\\$])",
+			"beginCaptures": {
+				"1": { "name": "keyword.operator.autostep" }
+			},
+			"contentName": "entity.annotation.autostep.text",
+			"end": "[\\r\\n]",
+			"patterns": [{
+				"include": "#comments"
+			}]
+		},
+		"feature-opener": {
+			"patterns": [{
+				"match": "^\\s*(Feature):([^#]*)\\b",
+				"captures": {
+					"1": { "name": "keyword.autostep.feature" },
+					"2": { "name": "entity.name"} 
+				}
+			}]
+		},
+		"scenario-opener": {
+			"patterns": [{
+				"match": "^\\s*(Scenario(?: Outline)?):([^#]*)\\b",
+				"captures": {
+					"1": { "name": "keyword.autostep.scenario" },
+					"2": { "name": "entity.name"}
+				}
+			}]
+		},
+		"background-opener": {
+			"patterns": [{
+				"match": "^\\s*(Background):",
+				"captures": {
+					"1": { "name": "keyword.autostep.background" }
+				}
+			}]
+		},
+		"examples-opener": {
+			"patterns": [{
+				"match": "^\\s*(Examples):",
+				"captures": {
+					"1": { "name": "keyword.autostep.examples" }
+				}
+			}]
+		},
+		"step-ref": {
+			"name": "entity.step.autostep",
+			"patterns": [{
+				"begin": "\\s*(Given|When|Then|And)",
+				"beginCaptures": {
+					"1": { "name": "keyword.autostep" }
+				},
+				"contentName": "entity.step.autostep.text",
+				"end": "[\\r\\n]",
+				"patterns": [{
+					"include": "#var-ref"
+				},
+				{
+					"include": "#comments"
+				}]
+			}]
+		},
+		"step-define": {
+			"name": "entity.stepdefine.autostep",
+			"patterns": [{
+				"begin": "(Step):",
+				"beginCaptures": {
+					"1": { "name": "keyword.autostep" }
+				},
+				"contentName": "entity.step.autostep.text",
+				"end": "[\\r\\n]",
+				"patterns": [
+				{
+					"match": "\\b(Given|When|Then)\\b",
+					"name": "keyword.autostep"	
+				},
+				{
+					"include": "#step-arg"
+				},
+				{
+					"include": "#comments"
+				}]
+			}]
+		},
+		"table": {
+			"name": "entity.other.table.autostep",
+			"begin": "^\\s*(\\|)",
+			"end": "(\\|)([^#]*|\\s*$)",
+			"captures": {
+				"1": { "name": "keyword.operator" }
+			},
 			"patterns": [
 				{
-					"name": "constant.character.escape.autostep",
-					"match": "\\\\."
+					"name": "keyword.operator",
+					"match": "\\|"
+				},
+				{
+					"include": "#var-ref"
 				}
 			]
+		},
+		"step-arg": {
+			"name": "variable.parameter.autostep",
+			"match": "{.+?}"
+		},
+		"var-ref": {
+			"name": "variable.name.autostep",
+			"match": "<.+?>"
 		}
 	},
 	"scopeName": "source.autostep"
