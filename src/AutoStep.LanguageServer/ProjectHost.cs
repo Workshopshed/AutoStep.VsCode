@@ -117,6 +117,9 @@ namespace AutoStep.LanguageServer
             {
                 IssueDiagnosticsForFile(file.Key, file.Value);
             }
+
+            // Inform the client that a build has just finished.
+            server.SendNotification("autostep/build_complete");
         }
 
         public void OpenFile(Uri uri, string documentContent)
@@ -255,7 +258,7 @@ namespace AutoStep.LanguageServer
         private void InitiateBackgroundBuild()
         {
             // Queue a compilation task.
-            taskQueue.QueueCompileTask(new CompileTask(this));
+            taskQueue.QueueCompileTask(new CompileProjectTask(this));
         }
 
         public void FileCreatedOnDisk(Uri uri)

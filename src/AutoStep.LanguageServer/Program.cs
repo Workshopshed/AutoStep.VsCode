@@ -41,6 +41,7 @@ namespace AutoStep.LanguageServer
                         .SetMinimumLevel(LogLevel.Debug))
                     .WithHandler<TextDocumentHandler>()
                     .WithHandler<DidChangeWatchedFilesHandler>()
+                    .WithHandler<AutoStepHandler>()
                     .WithServices(services => {
 
                         services.AddSingleton<IProjectHost, ProjectHost>();
@@ -74,22 +75,6 @@ namespace AutoStep.LanguageServer
             {
                 await hosted.StopAsync(CancellationToken.None);
             }
-        }
-    }
-
-    internal class Foo
-    {
-        private readonly ILogger<Foo> _logger;
-
-        public Foo(ILogger<Foo> logger)
-        {
-            logger.LogInformation("inside ctor");
-            _logger = logger;
-        }
-
-        public void SayFoo()
-        {
-            _logger.LogInformation("Fooooo!");
         }
     }
 }

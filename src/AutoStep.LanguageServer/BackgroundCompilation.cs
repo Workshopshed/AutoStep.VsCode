@@ -1,7 +1,11 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using AutoStep.Execution;
+using MediatR;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OmniSharp.Extensions.LanguageServer.Protocol.Server;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +16,15 @@ namespace AutoStep.LanguageServer
     {
         private readonly ICompilationTaskQueue taskQueue;
         private readonly IProjectHost projectHost;
+        private readonly ILanguageServer server;
         private readonly ILoggerFactory logFactory;
         private readonly ILogger<BackgroundCompilation> logger;
 
-        public BackgroundCompilation(ICompilationTaskQueue taskQueue, IProjectHost projectHost, ILoggerFactory logFactory)
+        public BackgroundCompilation(ICompilationTaskQueue taskQueue, IProjectHost projectHost, ILanguageServer server, ILoggerFactory logFactory)
         {
             this.taskQueue = taskQueue;
             this.projectHost = projectHost;
+            this.server = server;
             this.logFactory = logFactory;
             this.logger = logFactory.CreateLogger<BackgroundCompilation>();
         }
@@ -30,7 +36,7 @@ namespace AutoStep.LanguageServer
             await BackgroundProcessing(stoppingToken);
         }
 
-        private async Task HandleCompileTask(CompileTask task, CancellationToken stopToken)
+        private async Task HandleCompileTask(CompileProjectTask task, CancellationToken stopToken)
         {
             logger.LogDebug("Starting Compile");
 
@@ -57,7 +63,11 @@ namespace AutoStep.LanguageServer
 
                 try
                 {
-                    await HandleCompileTask(workItem, stoppingToken);
+                    await (workItem switch
+                    {
+                        CompileProjectTask cp => HandleCompileTask(cp, stoppingToken),
+                        _ => throw new InvalidOperationException()
+                    });
                 }
                 catch (Exception ex)
                 {

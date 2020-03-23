@@ -1,5 +1,6 @@
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
+import { window, workspace, ExtensionContext } from 'vscode';
+import './views/featureView'
 
 import {
   LanguageClient,
@@ -8,10 +9,11 @@ import {
   TransportKind,
   Executable
 } from 'vscode-languageclient';
+import FeatureView from './views/featureView';
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
   
   // The debug options for the server
   // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
@@ -21,7 +23,7 @@ export function activate(context: ExtensionContext) {
   // Otherwise the run options are used
   let serverCommand: Executable = {
     command: context.asAbsolutePath(path.join('server', 'AutoStep.LanguageServer.exe')),
-    //args: ["debug"]
+   // args: ["debug"]
   };
 
   let serverOptions: ServerOptions = serverCommand;
@@ -29,7 +31,7 @@ export function activate(context: ExtensionContext) {
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
     // Register the server for plain text documents
-    documentSelector: [{ scheme: 'file', language: 'autostep' }],
+    documentSelector: [{ scheme: 'file', language: 'autostep' }, {scheme: 'file', language: 'autostep-interaction' }],
     synchronize: {
       // Notify the server about file changes to '.clientrc files contained in the workspace
       configurationSection: "autostep",
@@ -47,7 +49,18 @@ export function activate(context: ExtensionContext) {
 
   // Start the client. This will also launch the server
   client.start();
+
+  var featureView = new FeatureView(client);
+
+  window.registerTreeDataProvider('autostep-features', new FeatureView(client));
+
+  await client.onReady();
+
+  client.onNotification("autostep/build_complete", () => {
+     featureView.refresh(); 
+  });
 }
+
 
 export function deactivate(): Thenable<void> {
     return client.stop();

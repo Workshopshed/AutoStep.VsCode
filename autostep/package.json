@@ -39,6 +39,23 @@
         }
     },
     "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+              {
+                "id": "autostep",
+                "title": "AutoStep",
+                "icon": "media/autostep-logo.png"
+              }
+            ]
+        },
+        "views": {
+			"autostep": [
+				{
+					"id": "autostep-features",
+					"name": "AutoStep Features"
+				}
+            ]
+        },
         "languages": [
             {
                 "id": "autostep",

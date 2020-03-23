@@ -69,7 +69,6 @@ namespace AutoStep.LanguageServer
             };
         }
 
-
         public void SetCapability(SynchronizationCapability capability)
         {
             _capability = capability;

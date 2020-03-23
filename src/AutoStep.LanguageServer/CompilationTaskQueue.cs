@@ -16,6 +16,20 @@ namespace AutoStep.LanguageServer
         public IProjectHost ProjectHost { get; }
     }
 
+    public class CompileProjectTask : CompileTask
+    {
+        public CompileProjectTask(IProjectHost projectHost) : base(projectHost)
+        {
+        }
+    }
+
+    public class GenerateFeatureListTask : CompileTask
+    {
+        public GenerateFeatureListTask(IProjectHost projectHost) : base(projectHost)
+        {
+        }
+    }
+
     public interface ICompilationTaskQueue
     {
         void QueueCompileTask(CompileTask task);
