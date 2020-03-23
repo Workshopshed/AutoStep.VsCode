@@ -22,10 +22,10 @@ export default class FeatureView implements vscode.TreeDataProvider<Feature>
 
     
 	private _onDidChangeTreeData: vscode.EventEmitter<Feature | null> = new vscode.EventEmitter<Feature | null>();
-	readonly onDidChangeTreeData: vscode.Event<Feature | null> = this._onDidChangeTreeData.event;
+    readonly onDidChangeTreeData: vscode.Event<Feature | null> = this._onDidChangeTreeData.event; 
 
     refresh() {
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(null);
     }
 
     getTreeItem(element: Feature): vscode.TreeItem | Thenable<vscode.TreeItem> {

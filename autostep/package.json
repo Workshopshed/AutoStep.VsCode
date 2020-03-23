@@ -11,9 +11,9 @@
     ],
     "activationEvents": [
         "onLanguage:autostep",
-        "onLanguage:autostep-interaction"
+        "onLanguage:autostep-interaction",
+        "onView:autostep-features"
     ],
-    "enableProposedApi": true,
     "main": "./out/extension.js",
     "configuration": {
         "type": "object",
@@ -41,19 +41,19 @@
     "contributes": {
         "viewsContainers": {
             "activitybar": [
-              {
-                "id": "autostep",
-                "title": "AutoStep",
-                "icon": "media/autostep-logo.png"
-              }
+                {
+                    "id": "autostep",
+                    "title": "AutoStep",
+                    "icon": "media/autostep-logo.png"
+                }
             ]
         },
         "views": {
-			"autostep": [
-				{
-					"id": "autostep-features",
-					"name": "AutoStep Features"
-				}
+            "autostep": [
+                {
+                    "id": "autostep-features",
+                    "name": "AutoStep Features"
+                }
             ]
         },
         "languages": [

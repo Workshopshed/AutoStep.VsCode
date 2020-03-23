@@ -52,7 +52,7 @@ export async function activate(context: ExtensionContext) {
 
   var featureView = new FeatureView(client);
 
-  window.registerTreeDataProvider('autostep-features', new FeatureView(client));
+  window.registerTreeDataProvider('autostep-features', featureView);
 
   await client.onReady();
 
