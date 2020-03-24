@@ -9,12 +9,13 @@
             "name": "Extension",
             "type": "extensionHost",
             "request": "launch",
-            "runtimeExecutable": "${execPath}",
+            "runtimeExecutable": "${execPath}",  
+            "preLaunchTask": "Build",  
             "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}"
+                "--extensionDevelopmentPath=${workspaceFolder}/src/Extension"
             ],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}src/Extension/out/**/*.js"
 			],
         }
     ]

@@ -1,4 +1,7 @@
-﻿using AutoStep.Execution;
+﻿using AutoStep.Elements.Metadata;
+using AutoStep.Elements.Test;
+using AutoStep.Execution;
+using AutoStep.Projects;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Extensions.JsonRpc;
@@ -16,9 +19,18 @@ namespace AutoStep.LanguageServer
 
     }
 
+    public class FeatureInfo
+    {
+        public string SourceFile { get; set; }
+
+        public string Name { get; set; }
+
+        public string Description { get; set; }
+    }
+
     public class FeatureSetParams
     {
-        public IEnumerable<string> FeatureNames { get; set; }
+        public IEnumerable<FeatureInfo> Features { get; set; }
     }
 
     [Method("autostep/features")]
@@ -39,12 +51,30 @@ namespace AutoStep.LanguageServer
 
         public Task<FeatureSetParams> Handle(FeatureRequest request, CancellationToken cancellationToken)
         {
-            var featureSet = FeatureExecutionSet.Create(host.Project, new RunAllFilter(), logFactory);
-
             return Task.FromResult(new FeatureSetParams
             {
-                FeatureNames = featureSet.Features.Select(x => x.Name)
+                Features = GetFeatureInfo()
             });
+        }
+
+        private IEnumerable<FeatureInfo> GetFeatureInfo()
+        {
+            // Query the set of all known features.
+            foreach (var file in host.Project.AllFiles.Values.OfType<ProjectTestFile>())
+            {
+                if(file.LastCompileResult?.Output is FileElement built)
+                {
+                    if(!string.IsNullOrEmpty(built.Feature?.Name))
+                    {
+                        yield return new FeatureInfo
+                        {
+                            SourceFile = file.Path,
+                            Name = built.Feature.Name,
+                            Description = built.Feature.Description
+                        };
+                    }
+                }
+            }
         }
     }
 }

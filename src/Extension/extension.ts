@@ -1,6 +1,8 @@
 import * as path from 'path';
-import { window, workspace, ExtensionContext } from 'vscode';
-import './views/featureView'
+import { window, workspace, env, ExtensionContext } from 'vscode';
+import './views/featureView';
+import * as os from "os"
+import * as child_process from "child_process"
 
 import {
   LanguageClient,
@@ -19,14 +21,33 @@ export async function activate(context: ExtensionContext) {
   // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
   // let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
+  // Determine platform language server platform path.
+  let platform = os.platform();
+
+  let build = "win-x64"
+
+  if (platform != "win32")
+  {
+    // Something else, use the linux one?
+    build = "linux";
+  }
+
   // If the extension is launched in debug mode then the debug server options are used
   // Otherwise the run options are used
-  let serverCommand: Executable = {
-    command: context.asAbsolutePath(path.join('server', 'AutoStep.LanguageServer.exe')),
-   // args: ["debug"]
+  let runCommand: Executable = {    
+    command: context.asAbsolutePath(path.join('server', build, 'AutoStep.LanguageServer.exe')),
+    args: []
   };
 
-  let serverOptions: ServerOptions = serverCommand;
+  let debugCommand: Executable = {
+    command: context.asAbsolutePath(path.join('server', 'portable', 'AutoStep.LanguageServer.exe')),
+    args: ["debug"]
+  };
+
+  let serverOptions: ServerOptions = { 
+     run: runCommand,
+     debug: debugCommand
+  };
 
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {

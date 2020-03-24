@@ -41,6 +41,7 @@ namespace AutoStep.LanguageServer
                         .SetMinimumLevel(LogLevel.Debug))
                     .WithHandler<TextDocumentHandler>()
                     .WithHandler<DidChangeWatchedFilesHandler>()
+                    .WithHandler<TestCompletionHandler>()
                     .WithHandler<AutoStepHandler>()
                     .WithServices(services => {
 

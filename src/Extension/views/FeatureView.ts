@@ -4,10 +4,14 @@ import { LanguageClient } from 'vscode-languageclient';
 export class Feature extends vscode.TreeItem
 {
     constructor(
-        public readonly label: string
+        public readonly info: FeatureInfo
     )
     {
-        super(label);
+        super(info.name);
+
+        this.id = `${info.sourceFile}/${info.name}`
+        this.tooltip = info.description;
+        this.description = info.sourceFile;
     }
 }
 
@@ -41,15 +45,21 @@ export default class FeatureView implements vscode.TreeDataProvider<Feature>
         else 
         {
             // Get the list of features.
-            var features = await this.languageClient.sendRequest<FeatureSetParams>("autostep/features");
+            var featureResponse = await this.languageClient.sendRequest<FeatureSetParams>("autostep/features");
 
-            return features.featureNames.map(s => new Feature(s));
+            return featureResponse.features.map(info => new Feature(info));
         }
     }
+}
 
+interface FeatureInfo 
+{
+    name: string;
+    description: string;
+    sourceFile: string;
 }
 
 declare class FeatureSetParams 
 {
-    featureNames: string[]
+    features: FeatureInfo[]
 }

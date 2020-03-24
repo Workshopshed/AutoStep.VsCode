@@ -3,8 +3,16 @@
     "displayName": "AutoStep",
     "description": "AutoStep BDD Testing Support",
     "version": "0.0.1",
+    "publisher": "autostep",
     "engines": {
         "vscode": "^1.43.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/autostep/AutoStep.VsCode.git"
+    },
+    "bugs": {
+        "url": "https://github.com/autostep/AutoStep.VsCode/issues"
     },
     "categories": [
         "Programming Languages"
@@ -94,7 +102,6 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "lint": "tslint -p ./",
         "watch": "tsc -watch -p ./"
