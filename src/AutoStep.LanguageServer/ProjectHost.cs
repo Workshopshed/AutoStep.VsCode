@@ -16,8 +16,11 @@ namespace AutoStep.LanguageServer
         Project Project { get; }
 
         void Initialize(Uri rootFolder);
-        void OnProjectCompiled();
 
+        Uri GetPathUri(string relativePath);
+
+        void OnProjectCompiled();
+        bool TryGetOpenFile(Uri uri, out ProjectFile file);
         void OpenFile(Uri uri, string documentContent);
         void UpdateOpenFile(Uri uri, string newContent);
         void CloseFile(Uri uri);
@@ -41,7 +44,7 @@ namespace AutoStep.LanguageServer
             this.server = server;
             this.taskQueue = taskQueue;
             this.logger = logger;
-            this.Project = new Project();
+            this.Project = new Project(forEditing: true);
         }
 
         public Project Project { get; }
@@ -77,6 +80,11 @@ namespace AutoStep.LanguageServer
             }
 
             InitiateBackgroundBuild();
+        }
+
+        public Uri GetPathUri(string relativePath)
+        {
+            return new Uri(RootFolder, relativePath);
         }
 
         private ProjectFile AddProjectFile(Uri uri)
@@ -120,6 +128,11 @@ namespace AutoStep.LanguageServer
 
             // Inform the client that a build has just finished.
             server.SendNotification("autostep/build_complete");
+        }
+
+        public bool TryGetOpenFile(Uri uri, out ProjectFile file)
+        {
+            return openFiles.TryGetValue(uri, out file);
         }
 
         public void OpenFile(Uri uri, string documentContent)

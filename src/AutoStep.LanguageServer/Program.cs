@@ -5,6 +5,7 @@ using OmniSharp.Extensions.LanguageServer.Server;
 using Serilog;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,6 +43,8 @@ namespace AutoStep.LanguageServer
                     .WithHandler<TextDocumentHandler>()
                     .WithHandler<DidChangeWatchedFilesHandler>()
                     .WithHandler<TestCompletionHandler>()
+                    .WithHandler<TestDefinitionHandler>()
+                    .WithHandler<TestHoverHandler>()
                     .WithHandler<AutoStepHandler>()
                     .WithServices(services => {
 
