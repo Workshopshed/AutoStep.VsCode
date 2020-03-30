@@ -1,4 +1,5 @@
 ﻿using AutoStep.Elements;
+using AutoStep.Language.Position;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,16 @@ namespace AutoStep.LanguageServer
         public static Position End(this PositionalElement element)
         {
             return new Position(element.EndLine - 1, element.EndColumn);
+        }
+
+        public static Position Start(this PositionLineToken token, long line)
+        {
+            return new Position(line, token.StartColumn - 1);
+        }
+
+        public static Position End(this PositionLineToken token, long line)
+        {
+            return new Position(line, token.EndColumn);
         }
     }
 }

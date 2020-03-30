@@ -31,9 +31,11 @@ namespace AutoStep.LanguageServer
             };
         }
 
-        public Task<LocationOrLocationLinks> Handle(DefinitionParams request, CancellationToken cancellationToken)
+        public async Task<LocationOrLocationLinks> Handle(DefinitionParams request, CancellationToken cancellationToken)
         {
-            if(TryGetStepReference(request.TextDocument, request.Position, out var stepRef))
+            var stepRef = await GetStepReferenceAsync(request.TextDocument, request.Position, cancellationToken);
+
+            if(stepRef is object)
             {
                 var stepDef = GetStepDefinition(stepRef);
 
@@ -53,16 +55,16 @@ namespace AutoStep.LanguageServer
                     else
                     {
                         // Cannot do anything here (yet). Must be a custom registration.
-                        return Task.FromResult<LocationOrLocationLinks>(null);
+                        return null;
                     }
 
                     var defElement = stepDef.Definition;
 
-                    return Task.FromResult( new LocationOrLocationLinks(new LocationOrLocationLink(new Location { Uri = fileUid, Range = defElement.Range() })));
+                    return new LocationOrLocationLinks(new LocationOrLocationLink(new Location { Uri = fileUid, Range = defElement.Range() }));
                 }
             }
 
-            return Task.FromResult<LocationOrLocationLinks>(null);
+            return null;
         }
 
         public void SetCapability(DefinitionCapability capability)

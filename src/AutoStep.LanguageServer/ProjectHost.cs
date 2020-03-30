@@ -4,9 +4,12 @@ using Microsoft.Extensions.Logging;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Protocol.Server;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
 
 namespace AutoStep.LanguageServer
@@ -19,7 +22,9 @@ namespace AutoStep.LanguageServer
 
         Uri GetPathUri(string relativePath);
 
-        void OnProjectCompiled();
+        void OnProjectCompiled(); 
+        ValueTask WaitForUpToDateBuild(CancellationToken token);
+
         bool TryGetOpenFile(Uri uri, out ProjectFile file);
         void OpenFile(Uri uri, string documentContent);
         void UpdateOpenFile(Uri uri, string newContent);
@@ -37,7 +42,9 @@ namespace AutoStep.LanguageServer
         private readonly ICompilationTaskQueue taskQueue;
         private readonly ILogger<ProjectHost> logger;
         private readonly Dictionary<Uri, ProjectFile> openFiles = new Dictionary<Uri, ProjectFile>();
-        private readonly object lockObj = new object();
+
+        private int currentBuildCount;
+        private ConcurrentQueue<Action> buildCompletion = new ConcurrentQueue<Action>();
 
         public ProjectHost(ILanguageServer server, ICompilationTaskQueue taskQueue, ILogger<ProjectHost> logger)
         {
@@ -91,7 +98,7 @@ namespace AutoStep.LanguageServer
         {
             var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
 
-            var source = new LanguageServerSource(name, uri.LocalPath);
+            var source = new LanguageServerSource(name, uri.LocalPath.TrimStart('/'));
 
             var extension = Path.GetExtension(name);
 
@@ -117,18 +124,6 @@ namespace AutoStep.LanguageServer
             return null;
         }
 
-        public void OnProjectCompiled()
-        {
-            // On project compilation, go through the open files and feed diagnostics back.
-            // Go through our open files, feed diagnostics back.
-            foreach (var file in openFiles)
-            {
-                IssueDiagnosticsForFile(file.Key, file.Value);
-            }
-
-            // Inform the client that a build has just finished.
-            server.SendNotification("autostep/build_complete");
-        }
 
         public bool TryGetOpenFile(Uri uri, out ProjectFile file)
         {
@@ -268,10 +263,58 @@ namespace AutoStep.LanguageServer
             };
         }
 
+        public void OnProjectCompiled()
+        {
+            if (Interlocked.Decrement(ref currentBuildCount) == 0)
+            {
+                // Dequeue all the things.
+                while(buildCompletion.TryDequeue(out var invoke))
+                {
+                    invoke();
+                }
+            }
+
+            // On project compilation, go through the open files and feed diagnostics back.
+            // Go through our open files, feed diagnostics back.
+            foreach (var file in openFiles)
+            {
+                IssueDiagnosticsForFile(file.Key, file.Value);
+            }
+
+            // Inform the client that a build has just finished.
+            server.SendNotification("autostep/build_complete");
+        }
+
+        public ValueTask WaitForUpToDateBuild(CancellationToken token)
+        {
+            if (currentBuildCount == 0)
+            {
+                return default;
+            }
+
+            var completionSource = new TaskCompletionSource<object>();
+            token.Register(() =>
+            {
+                if (!completionSource.Task.IsCompleted)
+                {
+                    completionSource.SetCanceled();
+                }
+            });
+
+            buildCompletion.Enqueue(() =>
+            {
+                completionSource.SetResult(null);
+            });
+
+            return new ValueTask(completionSource.Task);
+        }
+
         private void InitiateBackgroundBuild()
         {
+            Interlocked.Increment(ref currentBuildCount);
+
             // Queue a compilation task.
-            taskQueue.QueueCompileTask(new CompileProjectTask(this));
+            taskQueue.QueueTask(new CompileProjectTask(this));
         }
 
         public void FileCreatedOnDisk(Uri uri)

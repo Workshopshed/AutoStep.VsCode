@@ -4,6 +4,8 @@ using AutoStep.Elements.Test;
 using AutoStep.Language.Position;
 using AutoStep.Projects;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AutoStep.LanguageServer
 {
@@ -23,8 +25,10 @@ namespace AutoStep.LanguageServer
             }
         );
 
-        protected PositionInfo? GetPositionInfo(TextDocumentIdentifier textDocument, Position position)
+        protected async Task<PositionInfo?> GetPositionInfoAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken token)
         {
+            await ProjectHost.WaitForUpToDateBuild(token);
+
             if (ProjectHost.TryGetOpenFile(textDocument.Uri, out var file) && file is ProjectTestFile testFile)
             {
                 var compileResult = testFile.LastCompileResult;
@@ -52,11 +56,16 @@ namespace AutoStep.LanguageServer
         }
 
 
-        protected bool TryGetStepReference(TextDocumentIdentifier textDocument, Position position, out StepReferenceElement stepRef)
+        protected async Task<StepReferenceElement> GetStepReferenceAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken cancelToken)
         {
-            var pos = GetPositionInfo(textDocument, position);
+            var pos = await GetPositionInfoAsync(textDocument, position, cancelToken);
 
-            return TryGetStepReference(pos, out stepRef);
+            if(TryGetStepReference(pos, out var stepRef))
+            {
+                return stepRef;
+            }
+
+            return null;
         }
 
         protected StepDefinition GetStepDefinition(StepReferenceElement reference)
