@@ -60,7 +60,7 @@ namespace AutoStep.LanguageServer
         private IEnumerable<FeatureInfo> GetFeatureInfo()
         {
             // Query the set of all known features.
-            foreach (var file in host.Project.AllFiles.Values.OfType<ProjectTestFile>())
+            foreach (var file in host.ProjectContext.Project.AllFiles.Values.OfType<ProjectTestFile>())
             {
                 if(file.LastCompileResult?.Output is FileElement built)
                 {

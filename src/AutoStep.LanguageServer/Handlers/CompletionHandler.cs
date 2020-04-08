@@ -58,7 +58,7 @@ namespace AutoStep.LanguageServer
                 {
                     // We are in a step reference.
                     // How much declaration do we have already?
-                    var possibleMatches = ProjectHost.Project.Compiler.GetPossibleStepDefinitions(stepRef);
+                    var possibleMatches = ProjectHost.ProjectContext.Project.Compiler.GetPossibleStepDefinitions(stepRef);
 
                     var startInsertPos = request.Position;
                     var endInsertPos = request.Position;

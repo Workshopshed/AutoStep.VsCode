@@ -1,64 +1,95 @@
-﻿using AutoStep.Language;
+﻿using AutoStep.Extensions;
+using AutoStep.Language;
+using AutoStep.LanguageServer.Tasks;
 using AutoStep.Projects;
+using AutoStep.Projects.Files;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
+using NuGet.Packaging;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Protocol.Server;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
 
 namespace AutoStep.LanguageServer
 {
-    public interface IProjectHost 
+    public class ProjectConfigurationContext : IDisposable
     {
-        Project Project { get; }
+        public Project Project { get; set; }
 
-        void Initialize(Uri rootFolder);
+        public IConfiguration LoadedConfiguration { get; set; }
 
-        Uri GetPathUri(string relativePath);
+        public IFileSet TestFileSet { get; set; }
 
-        void OnProjectCompiled(); 
-        ValueTask WaitForUpToDateBuild(CancellationToken token);
+        public IFileSet InteractionFileSet { get; set; }
 
-        bool TryGetOpenFile(Uri uri, out ProjectFile file);
-        void OpenFile(Uri uri, string documentContent);
-        void UpdateOpenFile(Uri uri, string newContent);
-        void CloseFile(Uri uri);
-        void FileChangedOnDisk(Uri uri);
-        void FileCreatedOnDisk(Uri uri);
-        void FileDeletedOnDisk(Uri uri);
+        public IExtensionSet Extensions { get; set; }
 
-        void RequestBuild();
+        public void Dispose()
+        {
+            Project = null;
+            TestFileSet = null;
+            InteractionFileSet = null;
+            
+            Extensions.Dispose();
+
+            Extensions = null;
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
     }
 
-    public class ProjectHost : IProjectHost
+    internal class OpenFileState
+    {
+        public string Content { get; set; }
+
+        public DateTime LastModifyTime { get; set; }
+    }
+
+    internal class ProjectHost : IProjectHost
     {
         private readonly ILanguageServer server;
-        private readonly ICompilationTaskQueue taskQueue;
+        private readonly ILanguageTaskQueue taskQueue;
+        private readonly ILoggerFactory logFactory;
         private readonly ILogger<ProjectHost> logger;
-        private readonly Dictionary<Uri, ProjectFile> openFiles = new Dictionary<Uri, ProjectFile>();
 
-        private int currentBuildCount;
+        private readonly ConcurrentDictionary<string, OpenFileState> openContent = new ConcurrentDictionary<string, OpenFileState>();
+
+        private int currentBackgroundTasks;
         private ConcurrentQueue<Action> buildCompletion = new ConcurrentQueue<Action>();
+        private ConcurrentQueue<Action> projectReady = new ConcurrentQueue<Action>();
 
-        public ProjectHost(ILanguageServer server, ICompilationTaskQueue taskQueue, ILogger<ProjectHost> logger)
+        public ProjectHost(ILanguageServer server, ILanguageTaskQueue taskQueue, ILoggerFactory logFactory, ILogger<ProjectHost> logger)
         {
             this.server = server;
             this.taskQueue = taskQueue;
+            this.logFactory = logFactory;
             this.logger = logger;
-            this.Project = new Project(forEditing: true);
         }
 
-        public Project Project { get; }
+        public ProjectConfigurationContext ProjectContext { get; private set; }
+
+        public bool IsProjectReady()
+        {
+            return ProjectContext != null;
+        }
 
         public Uri RootFolder { get; private set; }
 
-        public void Initialize(Uri rootFolder)
+        public DirectoryInfo RootDirectoryInfo { get; private set; }
+
+        public async Task Initialize(Uri rootFolder, CancellationToken cancelToken)
         {
             if (rootFolder.AbsoluteUri.EndsWith("/"))
             {
@@ -69,116 +100,189 @@ namespace AutoStep.LanguageServer
                 RootFolder = new Uri(rootFolder.AbsoluteUri + "/");
             }
 
-            var dirInfo = new DirectoryInfo(RootFolder.LocalPath.TrimStart('/'));
+            RootDirectoryInfo = new DirectoryInfo(RootFolder.LocalPath.TrimStart('/'));
 
-            foreach(var file in dirInfo.EnumerateFiles("*.*", new EnumerationOptions { RecurseSubdirectories = true }))
-            {
-                var ext = Path.GetExtension(file.FullName);
-
-                if(ext == ".as" || ext == ".asi")
-                {
-                    // Create a 'vscode' format URI.
-                    var relativePath = Path.GetRelativePath(dirInfo.FullName, file.FullName);
-
-                    var vsCodeUri = new Uri(RootFolder, relativePath);
-
-                    AddProjectFile(vsCodeUri);
-                }
-            }
+            await LoadConfiguredProject(cancelToken);
 
             InitiateBackgroundBuild();
         }
 
-        public Uri GetPathUri(string relativePath)
+        private void InitiateBackgroundProjectLoad()
         {
-            return new Uri(RootFolder, relativePath);
+            // Need to unload the current project first.
+            RunInBackground(this, async (host, cancelToken) =>
+            {
+                await LoadConfiguredProject(cancelToken);
+
+                // If the current project is present, load nothing.
+                InitiateBackgroundBuild();
+            });
         }
 
-        private ProjectFile AddProjectFile(Uri uri)
+        private void ClearProject()
         {
-            var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+            ProjectContext.Dispose();            
+            ProjectContext = null;
+        }
 
-            var source = new LanguageServerSource(name, uri.LocalPath.TrimStart('/'));
+        private async Task LoadConfiguredProject(CancellationToken cancelToken)
+        {
+            // Load the configuration file.
+            var config = GetConfiguration(RootDirectoryInfo.FullName);
 
-            var extension = Path.GetExtension(name);
+            // Define file sets for interaction and test.
+            var interactionFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetInteractionFileGlobs(), new string[] { ".autostep/**" });
+            var testFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetTestFileGlobs(), new string[] { ".autostep/**" });
 
-            if (extension == ".as")
+            if (ProjectContext is object)
             {
-                // Add a test file.
-                var testFile = new ProjectTestFile(name, source);
-
-                Project.TryAddFile(testFile);
-
-                return testFile;
+                ClearProject();
             }
-            else if (extension == ".asi")
+
+            var newProject = new Project(true);
+
+            var extensions = await LoadExtensionsAsync(logFactory, config, cancelToken);
+
+            // Let our extensions extend the project.
+            extensions.AttachToProject(config, newProject);
+
+            // Add any files from extension content.
+            // Treat the extension directory as two file sets (one for interactions, one for test).
+            var extInteractionFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.asi" });
+            var extTestFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.as" });
+
+            newProject.MergeInteractionFileSet(extInteractionFiles);
+            newProject.MergeTestFileSet(extTestFiles);
+
+            // Add the two file sets.
+            newProject.MergeInteractionFileSet(interactionFiles, GetProjectFileSource);
+            newProject.MergeTestFileSet(testFiles, GetProjectFileSource);
+
+            ProjectContext = new ProjectConfigurationContext
             {
-                // Add an interaction file. 
-                var intFile = new ProjectInteractionFile(name, source);
+                LoadedConfiguration = config,
+                Project = newProject,
+                TestFileSet = testFiles,
+                InteractionFileSet = interactionFiles,
+                Extensions = extensions
+            };
+        }
 
-                Project.TryAddFile(intFile);
+        private IContentSource GetProjectFileSource(FileSetEntry fileEntry)
+        {
+            return new LanguageServerSource(fileEntry.Relative, fileEntry.Absolute, (relative) => 
+            {
+                if (openContent.TryGetValue(relative, out var result))
+                {
+                    return result;
+                }
 
-                return intFile;
+                return null;
+            });
+        }
+
+        protected async Task<IExtensionSet> LoadExtensionsAsync(ILoggerFactory logFactory, IConfiguration projectConfig, CancellationToken cancelToken)
+        {
+            var sourceSettings = new ExtensionSourceSettings(RootDirectoryInfo.FullName);
+
+            var customSources = projectConfig.GetSection("extensionSources").Get<string[]>() ?? Array.Empty<string>();
+
+            if (customSources.Length > 0)
+            {
+                // Add any additional configured sources.
+                sourceSettings.AppendCustomSources(customSources);
+            }
+
+            var loaded = await ExtensionSetLoader.LoadExtensionsAsync(RootDirectoryInfo.FullName, Assembly.GetEntryAssembly(), sourceSettings, logFactory, projectConfig, cancelToken);
+
+            return loaded;
+        }
+
+        protected IConfiguration GetConfiguration(string rootDirectory, string explicitConfigFile = null)
+        {
+            var configurationBuilder = new ConfigurationBuilder();
+
+            FileInfo configFile;
+
+            if (explicitConfigFile is null)
+            {
+                configFile = new FileInfo(Path.Combine(rootDirectory, "autostep.config.json"));
+            }
+            else
+            {
+                configFile = new FileInfo(explicitConfigFile);
+            }
+
+            // Is there a config file?
+            if (configFile.Exists)
+            {
+                // Add the JSON file.
+                configurationBuilder.AddJsonFile(configFile.FullName);
+            }
+
+            // Add environment.
+            configurationBuilder.AddEnvironmentVariables("AutoStep");
+
+            // TODO: We might allow config options to come from client settings, but not yet.
+            // configurationBuilder.AddInMemoryCollection(args.Option);
+
+            return configurationBuilder.Build();
+        }
+
+        public Uri GetPathUri(string relativePath)
+        {
+            // We're going to have to actually look up the file.
+            if (ProjectContext.Project.AllFiles.TryGetValue(relativePath, out var file))
+            {
+                if(file is IProjectFileFromSet fromSet)
+                {
+                    return new Uri(Path.GetFullPath(relativePath, fromSet.RootPath));
+                }
             }
 
             return null;
         }
 
+        private string RelativePathFromUri(Uri fileUri)
+        {
+            return Path.GetRelativePath(RootFolder.LocalPath, fileUri.LocalPath);
+        }
 
         public bool TryGetOpenFile(Uri uri, out ProjectFile file)
         {
-            return openFiles.TryGetValue(uri, out file);
+            var path = RelativePathFromUri(uri);
+
+            if(openContent.ContainsKey(path) && ProjectContext.Project.AllFiles.TryGetValue(path, out file))
+            {
+                return true;
+            }
+
+            file = null;
+            return false;
         }
 
         public void OpenFile(Uri uri, string documentContent)
         {
             var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
 
-            // Look at the set of files in the project.
-            if (!Project.AllFiles.TryGetValue(name, out ProjectFile projFile))
+            openContent[name] = new OpenFileState
             {
-                // Create the file.
-                projFile = AddProjectFile(uri);
-            }
+                Content = documentContent,
+                LastModifyTime = DateTime.UtcNow
+            };
 
-            openFiles.Add(uri, projFile);
-
-            // Change the source.
-            var source = (LanguageServerSource)projFile.ContentSource;
-
-            source.UpdateUnsavedContent(documentContent);
-
-            InitiateBackgroundBuild();            
-        }
-
-        public void CloseFile(Uri uri)
-        {
-            // Look at the set of files in the project.
-            if (openFiles.TryGetValue(uri, out ProjectFile projFile))
-            {
-                openFiles.Remove(uri);
-
-                // Change the source.
-                var source = (LanguageServerSource)projFile.ContentSource;
-
-                source.ResetFromDisk();
-            }
-            else
-            {
-                // ? File doesn't exist...
-                logger.LogError("Cannot open file, not in project: {0}", uri);
-            }
+            InitiateBackgroundBuild();
         }
 
         public void UpdateOpenFile(Uri uri, string newContent)
         {
-            // Look at the set of files in the project.
-            if (openFiles.TryGetValue(uri, out ProjectFile projFile))
-            {
-                // Change the source.
-                var source = (LanguageServerSource)projFile.ContentSource;
+            var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
 
-                source.UpdateUnsavedContent(newContent);
+            // Look at the set of files in the project.
+            if (openContent.TryGetValue(name, out var state))
+            {
+                state.Content = newContent;
+                state.LastModifyTime = DateTime.UtcNow;
 
                 InitiateBackgroundBuild();
             }
@@ -190,7 +294,15 @@ namespace AutoStep.LanguageServer
         }
 
 
-        private void IssueDiagnosticsForFile(Uri uri, ProjectFile file)
+        public void CloseFile(Uri uri)
+        {
+            var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+
+            // Just remove from the set of open content.
+            openContent.Remove(name, out var _);
+        }
+
+        private void IssueDiagnosticsForFile(string path, ProjectFile file)
         {
             LanguageOperationResult primary = null;
             LanguageOperationResult secondary = null;
@@ -223,9 +335,11 @@ namespace AutoStep.LanguageServer
                 }
             }
 
+            var vsCodeUri = new Uri(RootFolder, path);
+
             var diagnosticParams = new PublishDiagnosticsParams
             {
-                Uri = uri,
+                Uri = vsCodeUri,
                 Diagnostics = new Container<Diagnostic>(messages.Select(DiagnosticFromMessage))
             };
 
@@ -263,31 +377,9 @@ namespace AutoStep.LanguageServer
             };
         }
 
-        public void OnProjectCompiled()
-        {
-            if (Interlocked.Decrement(ref currentBuildCount) == 0)
-            {
-                // Dequeue all the things.
-                while(buildCompletion.TryDequeue(out var invoke))
-                {
-                    invoke();
-                }
-            }
-
-            // On project compilation, go through the open files and feed diagnostics back.
-            // Go through our open files, feed diagnostics back.
-            foreach (var file in openFiles)
-            {
-                IssueDiagnosticsForFile(file.Key, file.Value);
-            }
-
-            // Inform the client that a build has just finished.
-            server.SendNotification("autostep/build_complete");
-        }
-
         public ValueTask WaitForUpToDateBuild(CancellationToken token)
         {
-            if (currentBuildCount == 0)
+            if (currentBackgroundTasks == 0)
             {
                 return default;
             }
@@ -311,32 +403,121 @@ namespace AutoStep.LanguageServer
 
         private void InitiateBackgroundBuild()
         {
-            Interlocked.Increment(ref currentBuildCount);
-
             // Queue a compilation task.
-            taskQueue.QueueTask(new CompileProjectTask(this));
+            RunInBackground(this, async (projHost, cancelToken) =>
+            {
+                // Only run a build if this is the only background task.
+                // All the other background tasks queue a build, but we only want to build
+                // when everything else is done.
+                if(currentBackgroundTasks > 1)
+                {
+                    return;
+                }
+
+                var project = projHost.ProjectContext.Project;
+
+                var builder = project.Compiler;
+
+                await builder.CompileAsync(logFactory, cancelToken);
+
+                if (!cancelToken.IsCancellationRequested)
+                {
+                    builder.Link(cancelToken);
+                }
+
+                if (!cancelToken.IsCancellationRequested)
+                {
+                    // Notify done.
+                    projHost.OnProjectCompiled(project);
+                }
+            });
+        }
+
+        public void OnProjectCompiled(Project project)
+        {
+            // On project compilation, go through the open files and feed diagnostics back.
+            // Go through our open files, feed diagnostics back.
+            foreach (var openPath in openContent.Keys)
+            {
+                if(project.AllFiles.TryGetValue(openPath, out var file))
+                {
+                    IssueDiagnosticsForFile(openPath, file);
+                }
+            }
+
+            // Inform the client that a build has just finished.
+            server.SendNotification("autostep/build_complete");
         }
 
         public void FileCreatedOnDisk(Uri uri)
         {
-            AddProjectFile(uri);
+            RunInBackground(uri, (uri, cancelToken) =>
+            {
+                var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+                var extension = Path.GetExtension(name);
+
+                // Add the project file to the set.
+                if (extension == ".as")
+                {
+                    if (ProjectContext.TestFileSet.TryAddFile(name))
+                    {
+                        ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet, GetProjectFileSource);
+
+                        InitiateBackgroundBuild();
+                    }
+                }
+                else if (extension == ".asi")
+                {
+                    if (ProjectContext.InteractionFileSet.TryAddFile(name))
+                    {
+                        ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet, GetProjectFileSource);
+
+                        InitiateBackgroundBuild();
+                    }
+                }
+
+                return default;
+            });
         }
 
         public void FileChangedOnDisk(Uri uri)
         {
-            // Nothing to do here?
+            if (Path.GetFileName(uri.LocalPath).Equals("autostep.config.json", StringComparison.CurrentCultureIgnoreCase))
+            {
+                // Config has changed, reload the project.
+                InitiateBackgroundProjectLoad();
+            }
         }
 
         public void FileDeletedOnDisk(Uri uri)
         {
-            var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
-
-            // Look at the set of files in the project.
-            if (Project.AllFiles.TryGetValue(name, out ProjectFile projFile))
+            RunInBackground(uri, (uri, cancelToken) =>
             {
-                // Remove the file.
-                Project.TryRemoveFile(projFile);
-            }
+                var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+                var extension = Path.GetExtension(name);
+
+                // Add the project file to the set.
+                if (extension == ".as")
+                {
+                    if (ProjectContext.TestFileSet.TryRemoveFile(name))
+                    {
+                        ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet);
+
+                        InitiateBackgroundBuild();
+                    }
+                }
+                else if (extension == ".asi")
+                {
+                    if (ProjectContext.InteractionFileSet.TryRemoveFile(name))
+                    {
+                        ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet);
+
+                        InitiateBackgroundBuild();
+                    }
+                }
+
+                return default;
+            });
         }
 
         public void RequestBuild()
@@ -344,5 +525,23 @@ namespace AutoStep.LanguageServer
             InitiateBackgroundBuild();
         }
 
+        private void RunInBackground<TArgs>(TArgs arg, Func<TArgs, CancellationToken, ValueTask> callback)
+        {
+            Interlocked.Increment(ref currentBackgroundTasks);
+
+            taskQueue.QueueTask(arg, async (arg, cancelToken) => 
+            {
+                await callback(arg, cancelToken);
+
+                if (Interlocked.Decrement(ref currentBackgroundTasks) == 0)
+                {
+                    // Dequeue all the things.
+                    while (buildCompletion.TryDequeue(out var invoke))
+                    {
+                        invoke();
+                    }
+                }
+            });
+        }
     }
 }

@@ -6,44 +6,39 @@ using System.Threading.Tasks;
 
 namespace AutoStep.LanguageServer
 {
-    public class LanguageServerSource : IContentSource
+    internal class LanguageServerSource : IContentSource
     {
         private readonly string loadPath;
-        
-        public LanguageServerSource(string relativeName, string loadPath)
+        private readonly Func<string, OpenFileState> openStateFunc;
+
+        public LanguageServerSource(string relativeName, string loadPath, Func<string, OpenFileState> openStateFunc)
         {
             SourceName = relativeName;
             this.loadPath = loadPath;
+            this.openStateFunc = openStateFunc;
         }
 
         public string SourceName { get; }
 
-        public string UnsavedContent { get; private set; }
-
-        public DateTime? LastUnsavedUpdate { get; private set; }
-
-        public void UpdateUnsavedContent(string content)
-        {
-            UnsavedContent = content;
-            LastUnsavedUpdate = DateTime.UtcNow;
-        }
-
-        public void ResetFromDisk()
-        {
-            LastUnsavedUpdate = null;
-            UnsavedContent = null;
-        }
-
         public async ValueTask<string> GetContentAsync(CancellationToken cancelToken = default)
         {
-            return UnsavedContent ?? await File.ReadAllTextAsync(loadPath);
+            var openContent = openStateFunc(SourceName);
+
+            if(openContent is object)
+            {
+                return openContent.Content;
+            }
+            
+            return await File.ReadAllTextAsync(loadPath);
         }
 
         public DateTime GetLastContentModifyTime()
         {
-            if(LastUnsavedUpdate is DateTime)
+            var openContent = openStateFunc(SourceName);
+
+            if (openContent is object)
             {
-                return LastUnsavedUpdate.Value;
+                return openContent.LastModifyTime;
             }
 
             try

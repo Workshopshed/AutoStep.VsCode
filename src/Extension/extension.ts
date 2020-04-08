@@ -54,9 +54,8 @@ export async function activate(context: ExtensionContext) {
     // Register the server for plain text documents
     documentSelector: [{ scheme: 'file', language: 'autostep' }, {scheme: 'file', language: 'autostep-interaction' }],
     synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
       configurationSection: "autostep",
-      fileEvents: [ workspace.createFileSystemWatcher("**/*.as"), workspace.createFileSystemWatcher("**/*.asi") ]
+      fileEvents: [ workspace.createFileSystemWatcher("**/*.as"), workspace.createFileSystemWatcher("**/*.asi"), workspace.createFileSystemWatcher("**/*.json") ]
     }
   };
 

@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AutoStep.LanguageServer.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OmniSharp.Extensions.LanguageServer.Protocol.Server;
 using OmniSharp.Extensions.LanguageServer.Server;
 using Serilog;
 using System;
@@ -49,11 +51,12 @@ namespace AutoStep.LanguageServer
                     .WithServices(services => {
 
                         services.AddSingleton<IProjectHost, ProjectHost>();
-                        services.AddSingleton<ICompilationTaskQueue, CompilationTaskQueue>();
-                        services.AddHostedService<BackgroundCompilation>();
+                        services.AddSingleton<ILanguageTaskQueue, LanguageTaskQueue>();
+                        services.AddHostedService<BackgroundLanguageService>();
 
                     }).OnInitialize(async (s, request) => {
 
+                        // Initialize cancel source.
                         var serviceProvider = s.Services;
 
                         // Initialise the IHostedService instances.
@@ -67,7 +70,7 @@ namespace AutoStep.LanguageServer
                         var projectHost = serviceProvider.GetService<IProjectHost>();
 
                         // Init the project host with the root folder.
-                        projectHost.Initialize(request.RootUri);
+                        await projectHost.Initialize(request.RootUri, CancellationToken.None);
                     })
                 );
 

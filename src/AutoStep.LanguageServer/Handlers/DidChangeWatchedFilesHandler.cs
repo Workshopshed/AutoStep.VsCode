@@ -49,8 +49,6 @@ namespace AutoStep.LanguageServer
                 };
             }
 
-            projectHost.RequestBuild();
-
             return Unit.Task;
         }
 

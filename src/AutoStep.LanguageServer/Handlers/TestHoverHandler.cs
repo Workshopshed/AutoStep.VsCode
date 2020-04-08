@@ -88,7 +88,7 @@ namespace AutoStep.LanguageServer
                 return new Hover
                 {
                     Contents = new MarkedStringsOrMarkupContent(markupContent),
-                    Range = new Range(new Position(stepRef.SourceLine, stepRef.StartColumn), new Position(stepRef.SourceLine, stepRef.EndColumn))
+                    Range = stepRef.Range()
                 };
             }
 
