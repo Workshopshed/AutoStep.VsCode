@@ -19,5 +19,7 @@ To debug, open VS Code in the root of this repo and press F5. This will:
 
  - Run the ./build.ps1 script (in debug build mode)
  - Launch the VSCode debug instance with the extension loaded.
+ - When the language server starts, it will automatically attempt to run a debugger (``Debugger.Launch``), to give you an option
+   to attach to it.
 
 Take a look at the VS Code docs on debugging extensions for more details.
