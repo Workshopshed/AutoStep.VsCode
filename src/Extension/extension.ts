@@ -40,7 +40,7 @@ export async function activate(context: ExtensionContext) {
   };
 
   let debugCommand: Executable = {
-    command: context.asAbsolutePath(path.join('server', 'portable', exeName)),
+    command: context.asAbsolutePath(path.join('server', build, exeName)),
     args: ["debug"]
   };
 

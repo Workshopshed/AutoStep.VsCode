@@ -15,12 +15,15 @@ $ErrorActionPreference = "Stop";
 if($mode -eq "release")
 {
     # Release mode, build single file.
-    dotnet publish ./src/AutoStep.LanguageServer/ -r win-x64 -o .\artifacts\server\win-x64 -c Release /p:PublishSingleFile=true /p:PublishTrimmed=true
-    dotnet publish ./src/AutoStep.LanguageServer/ -r linux-x64 -o .\artifacts\server\linux-x64 -c Release /p:PublishSingleFile=true /p:PublishTrimmed=true
+    # /p:PublishSingleFile=true
+    dotnet publish ./src/AutoStep.LanguageServer/ -r win-x64 -o .\artifacts\server\win-x64 -c Release
+    dotnet publish ./src/AutoStep.LanguageServer/ -r linux-x64 -o .\artifacts\server\linux-x64 -c Release
 }
 else 
 {
     dotnet publish ./src/AutoStep.LanguageServer/ -o .\artifacts\server\portable -c Debug
+    dotnet publish ./src/AutoStep.LanguageServer/ -r win-x64 -o .\artifacts\server\win-x64 -c Debug
+    dotnet publish ./src/AutoStep.LanguageServer/ -r linux-x64 -o .\artifacts\server\linux-x64 -c Debug
 }
 
 if (Test-Path src/Extension/server)

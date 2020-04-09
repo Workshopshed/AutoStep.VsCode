@@ -9,7 +9,7 @@ namespace AutoStep.LanguageServer
     {
         ProjectConfigurationContext ProjectContext { get; }
 
-        Task Initialize(Uri rootFolder, CancellationToken cancelToken);
+        void Initialize(Uri rootFolder);
 
         Uri GetPathUri(string relativePath);
 

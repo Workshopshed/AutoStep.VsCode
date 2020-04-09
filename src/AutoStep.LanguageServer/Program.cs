@@ -70,7 +70,7 @@ namespace AutoStep.LanguageServer
                         var projectHost = serviceProvider.GetService<IProjectHost>();
 
                         // Init the project host with the root folder.
-                        await projectHost.Initialize(request.RootUri, CancellationToken.None);
+                        projectHost.Initialize(request.RootUri);
                     })
                 );
 

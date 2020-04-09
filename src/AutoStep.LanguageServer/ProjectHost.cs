@@ -89,7 +89,7 @@ namespace AutoStep.LanguageServer
 
         public DirectoryInfo RootDirectoryInfo { get; private set; }
 
-        public async Task Initialize(Uri rootFolder, CancellationToken cancelToken)
+        public void Initialize(Uri rootFolder)
         {
             if (rootFolder.AbsoluteUri.EndsWith("/"))
             {
@@ -102,9 +102,7 @@ namespace AutoStep.LanguageServer
 
             RootDirectoryInfo = new DirectoryInfo(RootFolder.LocalPath.TrimStart('/'));
 
-            await LoadConfiguredProject(cancelToken);
-
-            InitiateBackgroundBuild();
+            InitiateBackgroundProjectLoad();
         }
 
         private void InitiateBackgroundProjectLoad()
@@ -127,45 +125,74 @@ namespace AutoStep.LanguageServer
 
         private async Task LoadConfiguredProject(CancellationToken cancelToken)
         {
-            // Load the configuration file.
-            var config = GetConfiguration(RootDirectoryInfo.FullName);
-
-            // Define file sets for interaction and test.
-            var interactionFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetInteractionFileGlobs(), new string[] { ".autostep/**" });
-            var testFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetTestFileGlobs(), new string[] { ".autostep/**" });
-
-            if (ProjectContext is object)
+            try
             {
-                ClearProject();
+                // Load the configuration file.
+                var config = GetConfiguration(RootDirectoryInfo.FullName);
+
+                // Define file sets for interaction and test.
+                var interactionFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetInteractionFileGlobs(), new string[] { ".autostep/**" });
+                var testFiles = FileSet.Create(RootDirectoryInfo.FullName, config.GetTestFileGlobs(), new string[] { ".autostep/**" });
+
+                if (ProjectContext is object)
+                {
+                    ClearProject();
+                }
+
+                var newProject = new Project(true);
+
+                IExtensionSet extensions = null;
+
+                try
+                {
+                    extensions = await LoadExtensionsAsync(logFactory, config, cancelToken);
+
+                    // Let our extensions extend the project.
+                    extensions.AttachToProject(config, newProject);
+
+                    // Add any files from extension content.
+                    // Treat the extension directory as two file sets (one for interactions, one for test).
+                    var extInteractionFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.asi" });
+                    var extTestFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.as" });
+
+                    newProject.MergeInteractionFileSet(extInteractionFiles);
+                    newProject.MergeTestFileSet(extTestFiles);
+                }
+                catch
+                {
+                    // Dispose of the extensions if they are set - want to make sure we unload trouble-some extensions.
+                    if(extensions is object)
+                    {
+                        extensions.Dispose();
+                    }
+
+                    throw;
+                }
+
+                // Add the two file sets.
+                newProject.MergeInteractionFileSet(interactionFiles, GetProjectFileSource);
+                newProject.MergeTestFileSet(testFiles, GetProjectFileSource);
+
+                ProjectContext = new ProjectConfigurationContext
+                {
+                    LoadedConfiguration = config,
+                    Project = newProject,
+                    TestFileSet = testFiles,
+                    InteractionFileSet = interactionFiles,
+                    Extensions = extensions
+                };
             }
-
-            var newProject = new Project(true);
-
-            var extensions = await LoadExtensionsAsync(logFactory, config, cancelToken);
-
-            // Let our extensions extend the project.
-            extensions.AttachToProject(config, newProject);
-
-            // Add any files from extension content.
-            // Treat the extension directory as two file sets (one for interactions, one for test).
-            var extInteractionFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.asi" });
-            var extTestFiles = FileSet.Create(extensions.ExtensionsRootDir, new string[] { "*/content/**/*.as" });
-
-            newProject.MergeInteractionFileSet(extInteractionFiles);
-            newProject.MergeTestFileSet(extTestFiles);
-
-            // Add the two file sets.
-            newProject.MergeInteractionFileSet(interactionFiles, GetProjectFileSource);
-            newProject.MergeTestFileSet(testFiles, GetProjectFileSource);
-
-            ProjectContext = new ProjectConfigurationContext
+            catch (ProjectConfigurationException ex)
             {
-                LoadedConfiguration = config,
-                Project = newProject,
-                TestFileSet = testFiles,
-                InteractionFileSet = interactionFiles,
-                Extensions = extensions
-            };
+                // Feed diagnostics back.
+                // An error occurred.
+                // We won't have a project context any more.
+                server.Window.ShowError($"There is a problem with the project configuration: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                server.Window.ShowError($"Failed to load project: {ex.Message}");
+            }
         }
 
         private IContentSource GetProjectFileSource(FileSetEntry fileEntry)
@@ -232,7 +259,7 @@ namespace AutoStep.LanguageServer
         public Uri GetPathUri(string relativePath)
         {
             // We're going to have to actually look up the file.
-            if (ProjectContext.Project.AllFiles.TryGetValue(relativePath, out var file))
+            if (ProjectContext is object && ProjectContext.Project.AllFiles.TryGetValue(relativePath, out var file))
             {
                 if(file is IProjectFileFromSet fromSet)
                 {
@@ -252,7 +279,7 @@ namespace AutoStep.LanguageServer
         {
             var path = RelativePathFromUri(uri);
 
-            if(openContent.ContainsKey(path) && ProjectContext.Project.AllFiles.TryGetValue(path, out file))
+            if(openContent.ContainsKey(path) && ProjectContext is object && ProjectContext.Project.AllFiles.TryGetValue(path, out file))
             {
                 return true;
             }
@@ -409,7 +436,8 @@ namespace AutoStep.LanguageServer
                 // Only run a build if this is the only background task.
                 // All the other background tasks queue a build, but we only want to build
                 // when everything else is done.
-                if(currentBackgroundTasks > 1)
+                // We also don't want to try and build if there is no project context available.
+                if(currentBackgroundTasks > 1 || ProjectContext is null)
                 {
                     return;
                 }
@@ -453,26 +481,29 @@ namespace AutoStep.LanguageServer
         {
             RunInBackground(uri, (uri, cancelToken) =>
             {
-                var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
-                var extension = Path.GetExtension(name);
-
-                // Add the project file to the set.
-                if (extension == ".as")
+                if (ProjectContext is object)
                 {
-                    if (ProjectContext.TestFileSet.TryAddFile(name))
-                    {
-                        ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet, GetProjectFileSource);
+                    var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+                    var extension = Path.GetExtension(name);
 
-                        InitiateBackgroundBuild();
+                    // Add the project file to the set.
+                    if (extension == ".as")
+                    {
+                        if (ProjectContext.TestFileSet.TryAddFile(name))
+                        {
+                            ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet, GetProjectFileSource);
+
+                            InitiateBackgroundBuild();
+                        }
                     }
-                }
-                else if (extension == ".asi")
-                {
-                    if (ProjectContext.InteractionFileSet.TryAddFile(name))
+                    else if (extension == ".asi")
                     {
-                        ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet, GetProjectFileSource);
+                        if (ProjectContext.InteractionFileSet.TryAddFile(name))
+                        {
+                            ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet, GetProjectFileSource);
 
-                        InitiateBackgroundBuild();
+                            InitiateBackgroundBuild();
+                        }
                     }
                 }
 
@@ -491,33 +522,36 @@ namespace AutoStep.LanguageServer
 
         public void FileDeletedOnDisk(Uri uri)
         {
-            RunInBackground(uri, (uri, cancelToken) =>
+            if (ProjectContext is object)
             {
-                var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
-                var extension = Path.GetExtension(name);
-
-                // Add the project file to the set.
-                if (extension == ".as")
+                RunInBackground(uri, (uri, cancelToken) =>
                 {
-                    if (ProjectContext.TestFileSet.TryRemoveFile(name))
+                    var name = Path.GetRelativePath(RootFolder.LocalPath, uri.LocalPath);
+                    var extension = Path.GetExtension(name);
+
+                    // Add the project file to the set.
+                    if (extension == ".as")
                     {
-                        ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet);
+                        if (ProjectContext.TestFileSet.TryRemoveFile(name))
+                        {
+                            ProjectContext.Project.MergeTestFileSet(ProjectContext.TestFileSet);
 
-                        InitiateBackgroundBuild();
+                            InitiateBackgroundBuild();
+                        }
                     }
-                }
-                else if (extension == ".asi")
-                {
-                    if (ProjectContext.InteractionFileSet.TryRemoveFile(name))
+                    else if (extension == ".asi")
                     {
-                        ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet);
+                        if (ProjectContext.InteractionFileSet.TryRemoveFile(name))
+                        {
+                            ProjectContext.Project.MergeInteractionFileSet(ProjectContext.InteractionFileSet);
 
-                        InitiateBackgroundBuild();
+                            InitiateBackgroundBuild();
+                        }
                     }
-                }
 
-                return default;
-            });
+                    return default;
+                });
+            }
         }
 
         public void RequestBuild()
