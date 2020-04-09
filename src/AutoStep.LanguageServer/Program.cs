@@ -29,10 +29,7 @@ namespace AutoStep.LanguageServer
 
             Log.Logger = new LoggerConfiguration()
               .Enrich.FromLogContext()
-              .WriteTo.File("log.txt", rollingInterval: RollingInterval.Day)
               .CreateLogger();
-
-            Log.Logger.Information("This only goes file...");
 
             var server = await OmniSharp.Extensions.LanguageServer.Server.LanguageServer.From(options =>
                 options
