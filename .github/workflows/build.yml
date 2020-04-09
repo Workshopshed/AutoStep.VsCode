@@ -35,7 +35,7 @@ jobs:
       uses: roryprimrose/rungitversion@v1.0.0
            
     - name: Build Script      
-      run: pwsh ./build.ps1 release ${{ steps.gitversion.outputs.GitVersion_FullSemVer }}
+      run: pwsh ./build.ps1 release ${{ steps.gitversion.outputs.FullSemVer }}
 
     - name: Upload Packed
       uses: actions/upload-artifact@v1
