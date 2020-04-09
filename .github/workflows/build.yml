@@ -41,4 +41,4 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: vscode-extension
-        path: artifacts/autostep..vsix
+        path: artifacts/autostep-${{ steps.gitversion.outputs.FullSemVer }}.vsix
