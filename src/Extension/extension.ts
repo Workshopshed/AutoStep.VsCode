@@ -1,8 +1,6 @@
 import * as path from 'path';
 import { window, workspace, env, ExtensionContext } from 'vscode';
-import './views/featureView';
 import * as os from "os"
-import * as child_process from "child_process"
 
 import {
   LanguageClient,
@@ -11,7 +9,7 @@ import {
   TransportKind,
   Executable
 } from 'vscode-languageclient';
-import FeatureView from './views/featureView';
+import FeatureView from './views/FeatureView';
 
 let client: LanguageClient;
 

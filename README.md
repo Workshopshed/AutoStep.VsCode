@@ -11,4 +11,8 @@ This includes:
 
 To build and run this extension locally, you will need:
 
- - The dotnet core 3.1 SDK installed, 
+ - The dotnet core 3.1 SDK installed.
+ - node, version 12+
+ - powershell (powershell core on linux or mac is fine)
+
+To debug, open VS Code and run 

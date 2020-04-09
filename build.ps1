@@ -1,7 +1,11 @@
 Param(
     [Parameter(Position=0)]
     [string]
-    $mode = "debug"
+    $mode = "debug",
+
+    [Parameter(Position=1)]
+    [string]
+    $version = "0.0.1"
 )
 
 $ErrorActionPreference = "Stop";
@@ -42,7 +46,7 @@ if ($compileCode -ne 0)
 if ($mode -eq "release")
 {
     # Package
-    vsce package
+    vsce package $version
 }
 
 Pop-Location

@@ -35,9 +35,10 @@ jobs:
       uses: roryprimrose/rungitversion@v1.0.0
            
     - name: Build Script      
-      run: pwsh ./build.ps1 release
+      run: pwsh ./build.ps1 release ${{ steps.gitversion.outputs.GitVersion_FullSemVer }}
 
     - name: Upload Packed
       uses: actions/upload-artifact@v1
       with:
+        name: vscode-extension
         path: artifacts/*.vsix

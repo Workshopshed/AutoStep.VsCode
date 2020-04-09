@@ -3,7 +3,9 @@
     "displayName": "AutoStep",
     "description": "AutoStep BDD Testing Support",
     "version": "0.0.1",
-    "publisher": "autostep",
+    "publisher": "AutoStep Team",
+    "license": "MIT",
+    "icon": "AutoStep.png",
     "engines": {
         "vscode": "^1.43.0"
     },
@@ -16,6 +18,11 @@
     },
     "categories": [
         "Programming Languages"
+    ],
+    "keywords": [
+        "BDD",
+        "testing",
+        "gherkin"
     ],
     "activationEvents": [
         "onLanguage:autostep",
