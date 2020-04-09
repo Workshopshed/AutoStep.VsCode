@@ -32,6 +32,13 @@ npm install
 
 npm run compile
 
+$compileCode = $LASTEXITCODE;
+
+if ($compileCode -ne 0)
+{
+    exit $compileCode;
+}
+
 if ($mode -eq "release")
 {
     # Package
