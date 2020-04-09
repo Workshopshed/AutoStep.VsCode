@@ -8,6 +8,8 @@ Param(
     $version = "0.0.1"
 )
 
+$version
+
 $ErrorActionPreference = "Stop";
 
 if($mode -eq "release")
@@ -46,12 +48,12 @@ if ($compileCode -ne 0)
 if ($mode -eq "release")
 {
     # Package
-    vsce package $version
+    vsce package -o "autostep-$version.vsix"
 }
 
 Pop-Location
 
 if($mode -eq "release")
 {
-    Move-Item ./src/Extension/autostep*.vsix ./artifacts
+    Move-Item ./src/Extension/autostep*.vsix ./artifacts -Force
 }

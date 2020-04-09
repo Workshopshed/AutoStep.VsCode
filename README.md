@@ -15,4 +15,9 @@ To build and run this extension locally, you will need:
  - node, version 12+
  - powershell (powershell core on linux or mac is fine)
 
-To debug, open VS Code and run 
+To debug, open VS Code in the root of this repo and press F5. This will:
+
+ - Run the ./build.ps1 script (in debug build mode)
+ - Launch the VSCode debug instance with the extension loaded.
+
+Take a look at the VS Code docs on debugging extensions for more details.
