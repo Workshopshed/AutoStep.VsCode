@@ -1,0 +1,43 @@
+name: AutoStep Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+      
+    - name: Fetch tags for GitVersion
+      run: git fetch --tags
+      
+    - name: Fetch master for GitVersion
+      if: github.ref != 'refs/heads/master'
+      run: git branch --create-reflog master origin/master
+      
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.200
+      
+    - name: Setup Node
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    
+    - name: Install Powershell
+      run: sudo apt-get install -y powershell
+      
+    - name: GitVersion
+      id: gitversion  # step id used as reference for output values
+      uses: roryprimrose/rungitversion@v1.0.0
+           
+    - name: Build Script      
+      run: pwsh ./build.ps1 release
+
+    - name: Upload Packed
+      uses: actions/upload-artifact@v1
+      with:
+        path: artifacts/*.vsix

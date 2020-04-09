@@ -10,6 +10,7 @@ if($mode -eq "release")
 {
     # Release mode, build single file.
     dotnet publish ./src/AutoStep.LanguageServer/ -r win-x64 -o .\artifacts\server\win-x64 -c Release /p:PublishSingleFile=true /p:PublishTrimmed=true
+    dotnet publish ./src/AutoStep.LanguageServer/ -r linux-x64 -o .\artifacts\server\linux-x64 -c Release /p:PublishSingleFile=true /p:PublishTrimmed=true
 }
 else 
 {

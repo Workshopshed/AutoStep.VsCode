@@ -25,22 +25,24 @@ export async function activate(context: ExtensionContext) {
   let platform = os.platform();
 
   let build = "win-x64"
+  let exeName = "AutoStep.LanguageServer.exe";
 
   if (platform != "win32")
   {
     // Something else, use the linux one?
-    build = "linux";
+    build = "linux-x64";
+    exeName = "AutoStep.LanguageServer";
   }
 
   // If the extension is launched in debug mode then the debug server options are used
   // Otherwise the run options are used
   let runCommand: Executable = {    
-    command: context.asAbsolutePath(path.join('server', build, 'AutoStep.LanguageServer.exe')),
+    command: context.asAbsolutePath(path.join('server', build, exeName)),
     args: []
   };
 
   let debugCommand: Executable = {
-    command: context.asAbsolutePath(path.join('server', 'portable', 'AutoStep.LanguageServer.exe')),
+    command: context.asAbsolutePath(path.join('server', 'portable', exeName)),
     args: ["debug"]
   };
 
