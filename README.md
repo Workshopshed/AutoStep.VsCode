@@ -6,6 +6,19 @@ This includes:
 
 - As-you-type compilation and linking of your tests
 - Intellisense and Auto-Complete for steps.
+- Choosing Tests to Run
+
+> [Contribution Guide](https://github.com/autostep/.github/blob/master/CONTRIBUTING.md) and
+> [Code of Conduct](https://github.com/autostep/.github/blob/master/CODE_OF_CONDUCT.md)
+
+---
+
+**Status**
+
+AutoStep is currently under development (in alpha). You can grab the VSIX for this extension from the build artifacts
+until we release a version to the marketplace (or run locally, see below).
+
+---
 
 ## Building and Running
 
