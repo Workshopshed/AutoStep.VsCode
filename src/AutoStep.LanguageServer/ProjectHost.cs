@@ -220,7 +220,7 @@ namespace AutoStep.LanguageServer
                 sourceSettings.AppendCustomSources(customSources);
             }
 
-            var loaded = await ExtensionSetLoader.LoadExtensionsAsync(RootDirectoryInfo.FullName, Assembly.GetEntryAssembly(), sourceSettings, logFactory, projectConfig, cancelToken);
+            var loaded = await ExtensionSetLoader.LoadExtensionsAsync(RootDirectoryInfo.FullName, sourceSettings, logFactory, projectConfig, cancelToken);
 
             return loaded;
         }
