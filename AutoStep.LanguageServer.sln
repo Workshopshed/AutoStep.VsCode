@@ -11,10 +11,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		.gitignore = .gitignore
+		build.ps1 = build.ps1
+		.github\workflows\build.yml = .github\workflows\build.yml
 		LICENSE = LICENSE
 		NuGet.config = NuGet.config
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{76F961C5-73BA-4E39-B7C2-8FFA99185F76}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoStep.LanguageServer.Tests", "tests\AutoStep.LanguageServer.Tests\AutoStep.LanguageServer.Tests.csproj", "{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,12 +32,17 @@ Global
 		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{89BF9718-19C1-4B60-B45B-95D5221804DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{89BF9718-19C1-4B60-B45B-95D5221804DD} = {3846FD7F-F778-4256-A5AF-C7E5F5DC8093}
+		{DC2E2A0A-96CE-4D2A-B324-CA271DCF9651} = {76F961C5-73BA-4E39-B7C2-8FFA99185F76}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AF3F0223-EB51-4BB0-9E97-FC02F90C190E}

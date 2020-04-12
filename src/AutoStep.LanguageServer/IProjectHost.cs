@@ -1,5 +1,7 @@
 ﻿using AutoStep.Projects;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +14,8 @@ namespace AutoStep.LanguageServer
         void Initialize(Uri rootFolder);
 
         Uri GetPathUri(string relativePath);
+
+        IEnumerable<T> GetProjectFilesOfType<T>() where T : ProjectFile;
 
         ValueTask WaitForUpToDateBuild(CancellationToken token);
 

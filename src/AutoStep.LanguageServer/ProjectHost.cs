@@ -520,6 +520,16 @@ namespace AutoStep.LanguageServer
             }
         }
 
+        public IEnumerable<T> GetProjectFilesOfType<T>() where T : ProjectFile
+        {
+            if(ProjectContext is null)
+            {
+                return Enumerable.Empty<T>();
+            }
+
+            return ProjectContext.Project.AllFiles.Values.OfType<T>();
+        }
+
         public void FileDeletedOnDisk(Uri uri)
         {
             if (ProjectContext is object)
@@ -577,5 +587,6 @@ namespace AutoStep.LanguageServer
                 }
             });
         }
+
     }
 }

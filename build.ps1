@@ -14,6 +14,15 @@ $ErrorActionPreference = "Stop";
 
 if($mode -eq "release")
 {
+    dotnet test -c Release
+
+    $compileCode = $LASTEXITCODE;
+
+    if ($compileCode -ne 0)
+    {
+        exit $compileCode;
+    }
+
     # Release mode, build single file.
     # /p:PublishSingleFile=true
     dotnet publish ./src/AutoStep.LanguageServer/ -r win-x64 -o .\artifacts\server\win-x64 -c Release /p:PublishSingleFile=true
