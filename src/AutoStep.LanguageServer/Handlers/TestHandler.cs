@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using AutoStep.Definitions;
 using AutoStep.Elements.Test;
 using AutoStep.Language.Position;
-using AutoStep.Projects;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 
 namespace AutoStep.LanguageServer
@@ -12,65 +11,24 @@ namespace AutoStep.LanguageServer
     /// <summary>
     /// Base class for handlers that need to access step reference details.
     /// </summary>
-    public abstract class StepReferenceAccessHandler
+    public abstract class TestHandler : BaseHandler
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="StepReferenceAccessHandler"/> class.
+        /// Initializes a new instance of the <see cref="TestHandler"/> class.
         /// </summary>
         /// <param name="workspaceHost">The workspace host.</param>
-        public StepReferenceAccessHandler(IWorkspaceHost workspaceHost)
+        public TestHandler(IWorkspaceHost workspaceHost)
+            : base(workspaceHost)
         {
-            WorkspaceHost = workspaceHost;
         }
-
-        /// <summary>
-        /// Gets the workspace host.
-        /// </summary>
-        protected IWorkspaceHost WorkspaceHost { get; }
 
         /// <summary>
         /// Gets the default test document selector.
         /// </summary>
-        protected DocumentSelector DocumentSelector { get; } = new DocumentSelector(
-            new DocumentFilter()
-            {
-                Pattern = "**/*.as",
-            });
-
-        /// <summary>
-        /// Gets the position information for a given text document and position. Waits for an up-to-date build before returning.
-        /// </summary>
-        /// <param name="textDocument">The text document.</param>
-        /// <param name="position">The position in the document.</param>
-        /// <param name="token">The cancellation token.</param>
-        /// <returns>A position block (if available).</returns>
-        protected async Task<PositionInfo?> GetPositionInfoAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken token)
+        protected DocumentSelector DocumentSelector { get; } = new DocumentSelector(new DocumentFilter()
         {
-            if (textDocument is null)
-            {
-                throw new System.ArgumentNullException(nameof(textDocument));
-            }
-
-            if (position is null)
-            {
-                throw new System.ArgumentNullException(nameof(position));
-            }
-
-            await WorkspaceHost.WaitForUpToDateBuild(token);
-
-            if (WorkspaceHost.TryGetOpenFile(textDocument.Uri, out var file) && file is ProjectTestFile testFile)
-            {
-                var compileResult = testFile.LastCompileResult;
-
-                if (compileResult?.Positions is object)
-                {
-                    // Lines and columns are zero-based in vscode, but 1-based in AutoStep.
-                    return compileResult.Positions.Lookup(position.Line + 1, position.Character + 1);
-                }
-            }
-
-            return null;
-        }
+            Pattern = "**/*.as",
+        });
 
         /// <summary>
         /// Retrieves a step reference from the current scope.

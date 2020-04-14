@@ -1,0 +1,218 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using AutoStep.Definitions;
+using AutoStep.Definitions.Interaction;
+using AutoStep.Elements;
+using AutoStep.Elements.Interaction;
+using AutoStep.Elements.Test;
+using AutoStep.Execution;
+using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
+using OmniSharp.Extensions.LanguageServer.Protocol.Models;
+using OmniSharp.Extensions.LanguageServer.Protocol.Server;
+
+namespace AutoStep.LanguageServer
+{
+    /// <summary>
+    /// Handles requests for hover data in test files.
+    /// </summary>
+    public class InteractionHoverHandler : InteractionHandler, IHoverHandler
+    {
+        private bool supportsMarkdown;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="InteractionHoverHandler"/> class.
+        /// </summary>
+        /// <param name="workspace">The workspace host.</param>
+        public InteractionHoverHandler(IWorkspaceHost workspace)
+            : base(workspace)
+        {
+        }
+
+        /// <inheritdoc/>
+        public TextDocumentRegistrationOptions GetRegistrationOptions()
+        {
+            return new TextDocumentRegistrationOptions { DocumentSelector = DocumentSelector };
+        }
+
+        /// <inheritdoc/>
+        public async Task<Hover?> Handle(HoverParams request, CancellationToken cancellationToken)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            var position = await GetPositionInfoAsync(request.TextDocument, request.Position, cancellationToken);
+
+            if (position.HasValue)
+            {
+                var pos = position.Value;
+
+                if (pos.CurrentScope is MethodCallElement methodCall)
+                {
+                    return GetMethodCallHoverData(methodCall, pos.Scopes);
+                }
+            }
+
+            return null;
+        }
+
+        private Hover? GetMethodCallHoverData(MethodCallElement methodCall, IReadOnlyList<BuiltElement> scopes)
+        {
+            var containingScope = scopes.OfType<InteractionDefinitionElement>().FirstOrDefault();
+
+            if (containingScope is object)
+            {
+                var methodDef = Workspace.GetMethodDefinition(methodCall, containingScope);
+
+                if (methodDef is object)
+                {
+                    InteractionMethod? activeMethod = methodDef;
+                    string? documentation = null;
+
+                    // Use the most derived method definition that has a documentation block.
+                    while (string.IsNullOrWhiteSpace(documentation) && activeMethod is FileDefinedInteractionMethod definedMethod)
+                    {
+                        documentation = definedMethod.MethodDefinition.Documentation;
+                        activeMethod = definedMethod.OverriddenMethod;
+                    }
+
+                    var strBuilder = new StringBuilder();
+
+                    AddSignature(methodDef, strBuilder);
+
+                    if (!string.IsNullOrWhiteSpace(documentation))
+                    {
+                        strBuilder.Append(Environment.NewLine);
+                        strBuilder.Append(Environment.NewLine);
+                        strBuilder.Append(documentation);
+                    }
+
+                    var markupContent = new MarkupContent();
+                    markupContent.Value = strBuilder.ToString();
+                    markupContent.Kind = supportsMarkdown ? MarkupKind.Markdown : MarkupKind.PlainText;
+
+                    return new Hover
+                    {
+                        Contents = new MarkedStringsOrMarkupContent(markupContent),
+                        Range = methodCall.Range(),
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        private void AddSignature(InteractionMethod method, StringBuilder builder)
+        {
+            if (supportsMarkdown)
+            {
+                builder.Append("``");
+            }
+
+            builder.Append(method.Name);
+
+            builder.Append('(');
+
+            if (method is FileDefinedInteractionMethod fileMethod)
+            {
+                for (int idx = 0; idx < fileMethod.MethodDefinition.Arguments.Count; idx++)
+                {
+                    var arg = fileMethod.MethodDefinition.Arguments[idx];
+
+                    if (idx > 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(arg.Name);
+                }
+            }
+            else
+            {
+                for (int idx = 0; idx < method.ArgumentCount; idx++)
+                {
+                    if (idx > 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append("arg");
+                    builder.Append(idx + 1);
+                }
+            }
+
+            builder.Append(')');
+
+            if (supportsMarkdown)
+            {
+                builder.Append("``");
+            }
+        }
+
+        private Hover? GetHoverResult(StepReferenceElement stepRef, StepDefinition stepDef)
+        {
+            var definitionDescription = stepDef.Definition?.Description;
+
+            // Include argument values in the description.
+            if (stepRef.Binding?.Arguments.Length > 0)
+            {
+                var builder = new StringBuilder(definitionDescription);
+
+                if (!string.IsNullOrWhiteSpace(definitionDescription))
+                {
+                    builder.AppendLine(supportsMarkdown ? "  " : string.Empty);
+                }
+
+                if (supportsMarkdown)
+                {
+                    builder.AppendLine("**Arguments**  ");
+                }
+                else
+                {
+                    builder.AppendLine("Arguments");
+                }
+
+                foreach (var arg in stepRef.Binding.Arguments)
+                {
+                    builder.Append(arg.ArgumentName);
+                    builder.Append(": ");
+                    builder.Append(arg.GetRawText(stepRef.RawText!));
+                    builder.AppendLine("  ");
+                }
+
+                definitionDescription = builder.ToString();
+            }
+
+            if (!string.IsNullOrEmpty(definitionDescription))
+            {
+                var markupContent = new MarkupContent();
+                markupContent.Value = definitionDescription;
+                markupContent.Kind = supportsMarkdown ? MarkupKind.Markdown : MarkupKind.PlainText;
+
+                return new Hover
+                {
+                    Contents = new MarkedStringsOrMarkupContent(markupContent),
+                    Range = stepRef.Range(),
+                };
+            }
+
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public void SetCapability(HoverCapability capability)
+        {
+            if (capability is null)
+            {
+                throw new ArgumentNullException(nameof(capability));
+            }
+
+            this.supportsMarkdown = capability.ContentFormat.Contains(MarkupKind.Markdown);
+        }
+    }
+}

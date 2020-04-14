@@ -15,7 +15,7 @@ namespace AutoStep.LanguageServer
     /// <summary>
     /// Handles requests for hover data in test files.
     /// </summary>
-    public class TestHoverHandler : StepReferenceAccessHandler, IHoverHandler
+    public class TestHoverHandler : TestHandler, IHoverHandler
     {
         private bool supportsMarkdown;
 

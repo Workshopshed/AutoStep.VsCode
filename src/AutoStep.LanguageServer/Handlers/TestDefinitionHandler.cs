@@ -12,7 +12,7 @@ namespace AutoStep.LanguageServer
     /// <summary>
     /// Handles requests to get the definitiof a step reference.
     /// </summary>
-    public class TestDefinitionHandler : StepReferenceAccessHandler, IDefinitionHandler
+    public class TestDefinitionHandler : TestHandler, IDefinitionHandler
     {
         private DefinitionCapability? capability;
 
@@ -54,12 +54,12 @@ namespace AutoStep.LanguageServer
 
                     if (stepDef.Definition is InteractionStepDefinitionElement interactionDef)
                     {
-                        fileUid = WorkspaceHost.GetPathUri(interactionDef.SourceName ?? string.Empty);
+                        fileUid = Workspace.GetPathUri(interactionDef.SourceName ?? string.Empty);
                     }
                     else if (stepDef.Source is FileStepDefinitionSource fileSource)
                     {
                         // Bound to be a file, just use the source ID.
-                        fileUid = WorkspaceHost.GetPathUri(fileSource.File.Path);
+                        fileUid = Workspace.GetPathUri(fileSource.File.Path);
                     }
                     else
                     {

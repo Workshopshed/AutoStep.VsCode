@@ -7,8 +7,8 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="AutoStep" Version="1.0.0-develop.277" />
-        <PackageReference Include="AutoStep.Extensions" Version="1.0.0-develop.31" />
+        <PackageReference Include="AutoStep" Version="1.0.0-interaction-intellisense.287" />
+        <PackageReference Include="AutoStep.Extensions" Version="1.0.0-develop.36" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.2" />
         <PackageReference Include="OmniSharp.Extensions.LanguageServer" Version="0.15.0" />
         <PackageReference Include="Serilog" Version="2.9.0" />

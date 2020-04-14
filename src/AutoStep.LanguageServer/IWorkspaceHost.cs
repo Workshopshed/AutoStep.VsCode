@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoStep.Definitions.Interaction;
+using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Test;
 using AutoStep.Language.Test.Matching;
 using AutoStep.Projects;
@@ -94,5 +96,7 @@ namespace AutoStep.LanguageServer
         /// <param name="stepRef">The step reference.</param>
         /// <returns>The set of matches.</returns>
         IEnumerable<IMatchResult> GetPossibleStepDefinitions(StepReferenceElement stepRef);
+
+        InteractionMethod? GetMethodDefinition(MethodCallElement methodCall, InteractionDefinitionElement containingElement);
     }
 }

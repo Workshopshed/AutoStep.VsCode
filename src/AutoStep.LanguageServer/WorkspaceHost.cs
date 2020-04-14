@@ -4,8 +4,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoStep.Definitions.Interaction;
+using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Test;
 using AutoStep.Extensions;
 using AutoStep.Language;
@@ -358,6 +361,37 @@ namespace AutoStep.LanguageServer
             }
 
             return ProjectContext.Project.Compiler.GetPossibleStepDefinitions(stepRef);
+        }
+
+        public InteractionMethod? GetMethodDefinition(MethodCallElement methodCall, InteractionDefinitionElement containingElement)
+        {
+            if (methodCall is null)
+            {
+                throw new ArgumentNullException(nameof(methodCall));
+            }
+
+            if (containingElement is null)
+            {
+                throw new ArgumentNullException(nameof(containingElement));
+            }
+
+            if (ProjectContext is object)
+            {
+                // Get the method table.
+                var interactionSet = ProjectContext.Project.Compiler.GetCurrentInteractionSet();
+
+                if (interactionSet?.ExtendedMethodReferences is object)
+                {
+                    var methodTable = interactionSet.ExtendedMethodReferences.GetMethodTableForElement(containingElement);
+
+                    if (methodTable is object && methodTable.TryGetMethod(methodCall.MethodName, out var definition))
+                    {
+                        return definition;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private void InitiateBackgroundProjectLoad()
