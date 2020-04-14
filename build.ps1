@@ -14,7 +14,7 @@ $ErrorActionPreference = "Stop";
 
 if($mode -eq "release")
 {
-    dotnet test -c Release
+    dotnet test -c Release /p:TreatWarningsAsErrors=true
 
     $compileCode = $LASTEXITCODE;
 

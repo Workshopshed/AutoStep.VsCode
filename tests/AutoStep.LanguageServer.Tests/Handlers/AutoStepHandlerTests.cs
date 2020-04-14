@@ -19,7 +19,7 @@ namespace AutoStep.LanguageServer.Tests
         [Fact]
         public async Task FeatureSetRequestReturnsFeature()
         {
-            var mockedHost = new Mock<IProjectHost>();
+            var mockedHost = new Mock<IWorkspaceHost>();
 
             var file1 = new ProjectTestFile("/test1", new StringContentSource(""));
             file1.UpdateLastCompileResult(new FileCompilerResult(true, new FileElement
@@ -48,15 +48,9 @@ namespace AutoStep.LanguageServer.Tests
 
             var result = await handler.Handle(new FeatureRequest(), CancellationToken.None);
 
-            result.Features.Should().BeEquivalentTo(new FeatureInfo
-            {
-                Name = "Feature 1",
-                SourceFile = "/test1"                
-            }, new FeatureInfo
-            {
-                Name = "Feature 2",
-                SourceFile = "/test2"
-            });
+            result.Features.Should().BeEquivalentTo(
+                new FeatureInfo("/test1", "Feature 1", null), 
+                new FeatureInfo("/test2", "Feature 2", null));
         }
     }
 }

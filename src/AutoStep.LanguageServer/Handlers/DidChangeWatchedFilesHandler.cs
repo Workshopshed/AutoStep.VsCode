@@ -1,60 +1,80 @@
-﻿using MediatR;
+﻿using System.Threading;
+using System.Threading.Tasks;
+using MediatR;
 using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Protocol.Server;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace AutoStep.LanguageServer
 {
-    class DidChangeWatchedFilesHandler : IDidChangeWatchedFilesHandler
+    /// <summary>
+    /// File handler for watched files changing.
+    /// </summary>
+    public class DidChangeWatchedFilesHandler : IDidChangeWatchedFilesHandler
     {
-        private readonly IProjectHost projectHost;
-        private DidChangeWatchedFilesCapability _capability;
+        private readonly IWorkspaceHost workspaceHost;
+        private DidChangeWatchedFilesCapability capability;
 
-        public DidChangeWatchedFilesHandler(IProjectHost projectHost)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DidChangeWatchedFilesHandler"/> class.
+        /// </summary>
+        /// <param name="workspaceHost">The workspace host.</param>
+        public DidChangeWatchedFilesHandler(IWorkspaceHost workspaceHost)
         {
-            this.projectHost = projectHost;
-            _capability = new DidChangeWatchedFilesCapability();
+            this.workspaceHost = workspaceHost;
+            capability = new DidChangeWatchedFilesCapability();
         }
 
+        /// <inheritdoc/>
         public object GetRegistrationOptions()
         {
             return new object();
         }
 
+        /// <summary>
+        /// Handles a file change.
+        /// </summary>
+        /// <param name="request">The request details.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Completion.</returns>
         public Task<Unit> Handle(DidChangeWatchedFilesParams request, CancellationToken cancellationToken)
         {
+            if (request is null)
+            {
+                throw new System.ArgumentNullException(nameof(request));
+            }
+
             foreach (var change in request.Changes)
             {
                 switch (change.Type)
                 {
                     case FileChangeType.Created:
                     {
-                        projectHost.FileCreatedOnDisk(change.Uri);
+                        workspaceHost.FileCreatedOnDisk(change.Uri);
                         break;
                     }
 
                     case FileChangeType.Changed:
                     {
-                        projectHost.FileChangedOnDisk(change.Uri);
+                        workspaceHost.FileChangedOnDisk(change.Uri);
                         break;
                     }
 
                     case FileChangeType.Deleted:
                     {
-                        projectHost.FileDeletedOnDisk(change.Uri);
+                        workspaceHost.FileDeletedOnDisk(change.Uri);
                         break;
                     }
-                };
+                }
             }
 
             return Unit.Task;
         }
 
+        /// <inheritdoc/>
         public void SetCapability(DidChangeWatchedFilesCapability capability)
         {
-            _capability = capability;
+            this.capability = capability;
         }
     }
 }

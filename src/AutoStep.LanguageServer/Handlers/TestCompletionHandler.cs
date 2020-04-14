@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Schema;
-using AutoStep.Definitions;
 using AutoStep.Elements;
 using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Parts;
@@ -22,48 +19,70 @@ using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
 
 namespace AutoStep.LanguageServer
 {
+    /// <summary>
+    /// Intellisense completion handler for test files.
+    /// </summary>
     public class TestCompletionHandler : StepReferenceAccessHandler, ICompletionHandler
     {
         private readonly DocumentSelector documentSelector = new DocumentSelector(
             new DocumentFilter()
             {
-                Pattern = "**/*.as"
-            }
-        );
+                Pattern = "**/*.as",
+            });
 
-        private CompletionCapability clientCapability;
+        private CompletionCapability? clientCapability;
 
-        public TestCompletionHandler(IProjectHost projectHost) : base(projectHost)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TestCompletionHandler"/> class.
+        /// </summary>
+        /// <param name="projectHost">The project host.</param>
+        public TestCompletionHandler(IWorkspaceHost projectHost)
+            : base(projectHost)
         {
         }
 
+        /// <inheritdoc/>
         public CompletionRegistrationOptions GetRegistrationOptions()
         {
             return new CompletionRegistrationOptions
             {
                 DocumentSelector = documentSelector,
-                TriggerCharacters = new[] { " " }
+                TriggerCharacters = new[] { " " },
             };
         }
 
-        public async Task<CompletionList> Handle(CompletionParams request, CancellationToken cancellationToken)
+        /// <summary>
+        /// Handles the completion request.
+        /// </summary>
+        /// <param name="request">Request details (contains document and position info).</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The completion result.</returns>
+        public async Task<CompletionList?> Handle(CompletionParams request, CancellationToken cancellationToken)
         {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
             var pos = await GetPositionInfoAsync(request.TextDocument, request.Position, cancellationToken);
 
-            CompletionList completionList = null;
+            CompletionList? completionList = null;
 
             if (pos is PositionInfo position)
             {
                 if (TryGetStepReference(position, out var stepRef))
                 {
                     // We are in a step reference.
-                    // How much declaration do we have already?
-                    var possibleMatches = ProjectHost.ProjectContext.Project.Compiler.GetPossibleStepDefinitions(stepRef);
+                    // Get the possible step definitions for this step.
+                    var possibleMatches = WorkspaceHost.GetPossibleStepDefinitions(stepRef);
 
                     var startInsertPos = request.Position;
-                    var endInsertPos = request.Position;
+                    Position endInsertPos = request.Position;
 
+                    // Get the first token in the line that we will replace from.
                     var firstInsertToken = position.LineTokens.FirstOrDefault(t => t.Category == LineTokenCategory.StepText || t.Category == LineTokenCategory.Variable);
+
+                    // Get the last position of provided content.
                     var lastInsertToken = position.LineTokens.LastOrDefault(t => t.Category == LineTokenCategory.StepText || t.Category == LineTokenCategory.Variable);
 
                     if (firstInsertToken is object)
@@ -73,37 +92,48 @@ namespace AutoStep.LanguageServer
 
                     if (lastInsertToken is object)
                     {
-                        endInsertPos = lastInsertToken?.End(request.Position.Line);
+                        endInsertPos = lastInsertToken.End(request.Position.Line);
                     }
 
-                    completionList = new CompletionList(ExpandPlaceholders(possibleMatches).Select(m => new CompletionItem
-                    {
-                        Label = GetCompletionString(m, stepRef, CompletionStringMode.Label, out var _),
-                        Kind = CompletionItemKind.Snippet,
-                        Documentation = m.Match.Definition.Definition.Description,
-                        FilterText = GetCompletionString(m, stepRef, CompletionStringMode.Filter, out var _),
-                        TextEdit = new TextEdit
+                    // Expand the set of possible matches so we get one entry for
+                    // each possible placeholder value in the given step definition.
+                    var expanded = ExpandPlaceholders(possibleMatches);
+
+                    completionList = new CompletionList(
+                        ExpandPlaceholders(possibleMatches).Select(m => new CompletionItem
                         {
-                            NewText = GetCompletionString(m, stepRef, CompletionStringMode.Snippet, out var fmt),
-                            Range = new Range(startInsertPos, endInsertPos)
-                        },
-                        InsertTextFormat = fmt,
-                        Preselect = m.Match.IsExact,
-                    }), false);
+                            // Label displayed to the user in the list.
+                            Label = GetCompletionString(m, stepRef, CompletionStringMode.Label, out var _),
+                            Kind = CompletionItemKind.Snippet,
+                            Documentation = m.Match.Definition.Definition?.Description,
+
+                            // Text used by VS Code to do in-memory filtering.
+                            FilterText = GetCompletionString(m, stepRef, CompletionStringMode.Filter, out var _),
+                            TextEdit = new TextEdit
+                            {
+                                // The insert text (in snippet format, with tab stops.)
+                                NewText = GetCompletionString(m, stepRef, CompletionStringMode.Snippet, out var fmt),
+                                Range = new Range(startInsertPos, endInsertPos),
+                            },
+                            InsertTextFormat = fmt,
+
+                            // Auto-select this option if it's an exact match.
+                            Preselect = m.Match.IsExact,
+                        }), false);
 
                     return completionList;
                 }
                 else if ((position.CurrentScope is ScenarioElement || position.CurrentScope is StepDefinitionElement) && position.LineTokens.Count == 0)
                 {
                     // In a scenario or a step def; no other tokens on the line. Start a step reference.
-                    
-                    completionList = new CompletionList(new[]
-                    {
-                        new CompletionItem { Label = "Given ", Kind = CompletionItemKind.Keyword },
-                        new CompletionItem { Label = "When ", Kind = CompletionItemKind.Keyword },
-                        new CompletionItem { Label = "Then ", Kind = CompletionItemKind.Keyword },
-                        new CompletionItem { Label = "And ", Kind = CompletionItemKind.Keyword }
-                    }, true);
+                    completionList = new CompletionList(
+                        new[]
+                        {
+                            new CompletionItem { Label = "Given ", Kind = CompletionItemKind.Keyword },
+                            new CompletionItem { Label = "When ", Kind = CompletionItemKind.Keyword },
+                            new CompletionItem { Label = "Then ", Kind = CompletionItemKind.Keyword },
+                            new CompletionItem { Label = "And ", Kind = CompletionItemKind.Keyword },
+                        }, true);
                 }
             }
 
@@ -114,12 +144,12 @@ namespace AutoStep.LanguageServer
         {
             foreach (var match in matches)
             {
-                if(match.Definition.Definition is InteractionStepDefinitionElement interactionDef && interactionDef.ValidComponents.Any())
+                if (match.Definition.Definition is InteractionStepDefinitionElement interactionDef && interactionDef.ValidComponents.Any())
                 {
                     // There are some valid components at work.
                     // Expand them into individual matches.
                     // Do we have a component placeholder in the match set?
-                    if(match.PlaceholderValues is object && match.PlaceholderValues.TryGetValue(StepPlaceholders.Component, out var placeholderValue))
+                    if (match.PlaceholderValues is object && match.PlaceholderValues.TryGetValue(StepPlaceholders.Component, out var placeholderValue))
                     {
                         // Just the one match (with the component).
                         yield return new ExpandedMatch(match, placeholderValue);
@@ -142,7 +172,7 @@ namespace AutoStep.LanguageServer
 
         private struct ExpandedMatch
         {
-            public ExpandedMatch(IMatchResult match, string componentName = null)
+            public ExpandedMatch(IMatchResult match, string? componentName = null)
             {
                 Match = match;
                 ComponentName = componentName;
@@ -150,14 +180,14 @@ namespace AutoStep.LanguageServer
 
             public IMatchResult Match { get; }
 
-            public string ComponentName { get; }
+            public string? ComponentName { get; }
         }
 
         private enum CompletionStringMode
         {
             Label,
             Snippet,
-            Filter
+            Filter,
         }
 
         private string GetCompletionString(ExpandedMatch match, StepReferenceElement stepRef, CompletionStringMode mode, out InsertTextFormat format)
@@ -175,10 +205,16 @@ namespace AutoStep.LanguageServer
 
             var definition = match.Match.Definition.Definition;
 
-            if(definition.Arguments.Count == 0 && !(definition is InteractionStepDefinitionElement intEl && intEl.ValidComponents.Any()))
+            if (definition is null)
             {
                 format = InsertTextFormat.PlainText;
-                return definition.Declaration;
+                return string.Empty;
+            }
+
+            if (definition.Arguments.Count == 0 && !(definition is InteractionStepDefinitionElement intEl && intEl.ValidComponents.Any()))
+            {
+                format = InsertTextFormat.PlainText;
+                return definition.Declaration ?? string.Empty;
             }
 
             var parts = definition.Parts;
@@ -197,16 +233,16 @@ namespace AutoStep.LanguageServer
                     // Do we know the value yet?
                     var knownArgValue = match.Match.Arguments.FirstOrDefault(a => a.ArgumentName == arg.Name);
 
-                    if(knownArgValue is object)
+                    if (knownArgValue is object)
                     {
                         snippetLength += knownArgValue.GetRawLength();
 
-                        if(knownArgValue.StartExclusive)
+                        if (knownArgValue.StartExclusive)
                         {
                             snippetLength += 1;
                         }
 
-                        if(knownArgValue.EndExclusive)
+                        if (knownArgValue.EndExclusive)
                         {
                             snippetLength += 1;
                         }
@@ -214,7 +250,7 @@ namespace AutoStep.LanguageServer
                     else if (mode == CompletionStringMode.Snippet)
                     {
                         argNumber++;
-                        snippetLength += placeholderBaseCharacterCount + argNumber.ToString().Length + arg.Name.Length;
+                        snippetLength += placeholderBaseCharacterCount + argNumber.ToString(CultureInfo.CurrentCulture).Length + arg.Name.Length;
                     }
                     else
                     {
@@ -223,9 +259,9 @@ namespace AutoStep.LanguageServer
 
                     format = InsertTextFormat.Snippet;
                 }
-                else if(part is PlaceholderMatchPart placeholder && placeholder.PlaceholderValueName == StepPlaceholders.Component)
+                else if (part is PlaceholderMatchPart placeholder && placeholder.PlaceholderValueName == StepPlaceholders.Component)
                 {
-                    if(match.ComponentName is object)
+                    if (match.ComponentName is object)
                     {
                         snippetLength += match.ComponentName.Length;
                     }
@@ -256,7 +292,7 @@ namespace AutoStep.LanguageServer
                 for (int idx = m.startPartIdx; idx < partSet.Count; idx++)
                 {
                     var part = partSet[idx];
-                    
+
                     if (part is ArgumentPart arg)
                     {
                         // Do we know the value yet?
@@ -264,26 +300,26 @@ namespace AutoStep.LanguageServer
 
                         if (knownArgValue is object)
                         {
-                            if(knownArgValue.StartExclusive)
+                            if (knownArgValue.StartExclusive)
                             {
                                 span[0] = '\'';
                                 span = span.Slice(1);
                             }
 
-                            var raw = knownArgValue.GetRawText(m.stepRef.RawText);
+                            var raw = knownArgValue.GetRawText(m.stepRef.RawText ?? string.Empty);
                             raw.AsSpan().CopyTo(span);
                             span = span.Slice(raw.Length);
 
-                            if(knownArgValue.EndExclusive)
+                            if (knownArgValue.EndExclusive)
                             {
                                 span[0] = '\'';
                                 span = span.Slice(1);
                             }
                         }
-                        else if(m.mode == CompletionStringMode.Snippet)
+                        else if (m.mode == CompletionStringMode.Snippet)
                         {
                             argNumber++;
-                            var argNumberStr = argNumber.ToString();
+                            var argNumberStr = argNumber.ToString(CultureInfo.CurrentCulture);
 
                             placeholderPrefix.AsSpan().CopyTo(span);
                             span = span.Slice(placeholderPrefix.Length);
@@ -308,16 +344,17 @@ namespace AutoStep.LanguageServer
                     }
                     else if (part is PlaceholderMatchPart placeholder && placeholder.PlaceholderValueName == StepPlaceholders.Component)
                     {
-                        m.ComponentName.AsSpan().CopyTo(span);
-                        span = span.Slice(m.ComponentName.Length);
+                        var compSpan = m.ComponentName.AsSpan();
+                        compSpan.CopyTo(span);
+                        span = span.Slice(compSpan.Length);
                     }
-                    else                    
+                    else
                     {
                         part.Text.AsSpan().CopyTo(span);
                         span = span.Slice(part.Text.Length);
                     }
 
-                    if(idx < partSet.Count - 1)
+                    if (idx < partSet.Count - 1)
                     {
                         span[0] = ' ';
                         span = span.Slice(1);
@@ -330,9 +367,10 @@ namespace AutoStep.LanguageServer
             return createdStr;
         }
 
+        /// <inheritdoc/>
         public void SetCapability(CompletionCapability capability)
         {
-            clientCapability = capability;            
+            clientCapability = capability;
         }
     }
 }

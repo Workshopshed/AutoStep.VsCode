@@ -4,3 +4,37 @@
 [*]
 indent_style = space
 indent_size = 4
+
+# SA1405: Debug.Assert should provide message text
+dotnet_diagnostic.SA1405.severity = silent
+
+# CS3021: Type or member does not need a CLSCompliant attribute because the assembly does not have a CLSCompliant attribute
+dotnet_diagnostic.CS3021.severity = silent
+
+# SA1633: File should have header
+dotnet_diagnostic.SA1633.severity = silent
+
+# SA1202: Elements should be ordered by access - it's a fight between SA1202 and SA1201 (property/method order), and SA1201 wins.
+dotnet_diagnostic.SA1202.severity = silent
+
+# SA1204: Static elements should appear before instance elements
+dotnet_diagnostic.SA1204.severity = none
+
+# CA1032: Implement standard exception constructors
+dotnet_diagnostic.CA1032.severity = none
+
+# SA1201: Elements should appear in the correct order
+dotnet_diagnostic.SA1201.severity = none
+
+# SA1200: Using directives should be placed correctly
+dotnet_diagnostic.SA1200.severity = none
+
+# CA2007: Consider calling ConfigureAwait on the awaited task - We don't need to do this, because we control the entire application,
+#         and it doesn't have a UI
+dotnet_diagnostic.CA2007.severity = none
+
+# SA1101: Prefix local calls with this
+dotnet_diagnostic.SA1101.severity = none
+
+# SA0001: XML comment analysis is disabled - we don't generate XML docs for the language server.
+dotnet_diagnostic.SA0001.severity = none

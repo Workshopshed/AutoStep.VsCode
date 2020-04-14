@@ -1,56 +1,65 @@
-﻿using AutoStep.Definitions.Test;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using AutoStep.Definitions.Test;
 using AutoStep.Elements.Interaction;
-using AutoStep.Execution.Contexts;
 using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Protocol.Server;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
 
 namespace AutoStep.LanguageServer
 {
+    /// <summary>
+    /// Handles requests to get the definitiof a step reference.
+    /// </summary>
     public class TestDefinitionHandler : StepReferenceAccessHandler, IDefinitionHandler
     {
-        private DefinitionCapability capability;
+        private DefinitionCapability? capability;
 
-        public TestDefinitionHandler(IProjectHost projectHost) 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TestDefinitionHandler"/> class.
+        /// </summary>
+        /// <param name="projectHost">The project host.</param>
+        public TestDefinitionHandler(IWorkspaceHost projectHost)
             : base(projectHost)
         {
         }
 
+        /// <inheritdoc/>
         public TextDocumentRegistrationOptions GetRegistrationOptions()
         {
             return new TextDocumentRegistrationOptions
             {
-                DocumentSelector = DocumentSelector
+                DocumentSelector = DocumentSelector,
             };
         }
 
-        public async Task<LocationOrLocationLinks> Handle(DefinitionParams request, CancellationToken cancellationToken)
+        /// <inheritdoc/>
+        public async Task<LocationOrLocationLinks?> Handle(DefinitionParams request, CancellationToken cancellationToken)
         {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
             var stepRef = await GetStepReferenceAsync(request.TextDocument, request.Position, cancellationToken);
 
-            if(stepRef is object)
+            if (stepRef is object)
             {
                 var stepDef = GetStepDefinition(stepRef);
 
-                if(stepDef is object)
+                if (stepDef is object && stepDef.Definition is object)
                 {
-                    Uri fileUid;
+                    Uri? fileUid;
 
-                    if(stepDef.Definition is InteractionStepDefinitionElement interactionDef)
+                    if (stepDef.Definition is InteractionStepDefinitionElement interactionDef)
                     {
-                        fileUid = ProjectHost.GetPathUri(interactionDef.SourceName);
+                        fileUid = WorkspaceHost.GetPathUri(interactionDef.SourceName ?? string.Empty);
                     }
-                    else if(stepDef.Source is FileStepDefinitionSource fileSource)
+                    else if (stepDef.Source is FileStepDefinitionSource fileSource)
                     {
                         // Bound to be a file, just use the source ID.
-                        fileUid = ProjectHost.GetPathUri(fileSource.File.Path);
+                        fileUid = WorkspaceHost.GetPathUri(fileSource.File.Path);
                     }
                     else
                     {
@@ -67,6 +76,7 @@ namespace AutoStep.LanguageServer
             return null;
         }
 
+        /// <inheritdoc/>
         public void SetCapability(DefinitionCapability capability)
         {
             this.capability = capability;

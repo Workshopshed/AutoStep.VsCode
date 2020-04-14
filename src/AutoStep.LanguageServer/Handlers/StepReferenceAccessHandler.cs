@@ -1,35 +1,64 @@
-﻿using AutoStep.Definitions;
-using AutoStep.Elements;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
+using AutoStep.Definitions;
 using AutoStep.Elements.Test;
 using AutoStep.Language.Position;
 using AutoStep.Projects;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace AutoStep.LanguageServer
 {
+    /// <summary>
+    /// Base class for handlers that need to access step reference details.
+    /// </summary>
     public abstract class StepReferenceAccessHandler
     {
-        public StepReferenceAccessHandler(IProjectHost projectHost)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StepReferenceAccessHandler"/> class.
+        /// </summary>
+        /// <param name="workspaceHost">The workspace host.</param>
+        public StepReferenceAccessHandler(IWorkspaceHost workspaceHost)
         {
-            ProjectHost = projectHost;
+            WorkspaceHost = workspaceHost;
         }
 
-        protected IProjectHost ProjectHost { get; }
+        /// <summary>
+        /// Gets the workspace host.
+        /// </summary>
+        protected IWorkspaceHost WorkspaceHost { get; }
 
+        /// <summary>
+        /// Gets the default test document selector.
+        /// </summary>
         protected DocumentSelector DocumentSelector { get; } = new DocumentSelector(
             new DocumentFilter()
             {
-                Pattern = "**/*.as"
-            }
-        );
+                Pattern = "**/*.as",
+            });
 
+        /// <summary>
+        /// Gets the position information for a given text document and position. Waits for an up-to-date build before returning.
+        /// </summary>
+        /// <param name="textDocument">The text document.</param>
+        /// <param name="position">The position in the document.</param>
+        /// <param name="token">The cancellation token.</param>
+        /// <returns>A position block (if available).</returns>
         protected async Task<PositionInfo?> GetPositionInfoAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken token)
         {
-            await ProjectHost.WaitForUpToDateBuild(token);
+            if (textDocument is null)
+            {
+                throw new System.ArgumentNullException(nameof(textDocument));
+            }
 
-            if (ProjectHost.TryGetOpenFile(textDocument.Uri, out var file) && file is ProjectTestFile testFile)
+            if (position is null)
+            {
+                throw new System.ArgumentNullException(nameof(position));
+            }
+
+            await WorkspaceHost.WaitForUpToDateBuild(token);
+
+            if (WorkspaceHost.TryGetOpenFile(textDocument.Uri, out var file) && file is ProjectTestFile testFile)
             {
                 var compileResult = testFile.LastCompileResult;
 
@@ -43,7 +72,13 @@ namespace AutoStep.LanguageServer
             return null;
         }
 
-        protected bool TryGetStepReference(PositionInfo? pos, out StepReferenceElement stepRef)
+        /// <summary>
+        /// Retrieves a step reference from the current scope.
+        /// </summary>
+        /// <param name="pos">The position information.</param>
+        /// <param name="stepRef">The step reference.</param>
+        /// <returns>True if a step reference was present at the provided position.</returns>
+        protected static bool TryGetStepReference(PositionInfo? pos, [NotNullWhen(true)] out StepReferenceElement? stepRef)
         {
             if (pos?.CurrentScope is StepReferenceElement reference)
             {
@@ -55,12 +90,18 @@ namespace AutoStep.LanguageServer
             return false;
         }
 
-
-        protected async Task<StepReferenceElement> GetStepReferenceAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken cancelToken)
+        /// <summary>
+        /// Retrieves a step reference element for a given document and position.
+        /// </summary>
+        /// <param name="textDocument">The text document.</param>
+        /// <param name="position">The position.</param>
+        /// <param name="cancelToken">Cancellation token.</param>
+        /// <returns>A task containing a found step reference, or null if no such reference is present.</returns>
+        protected async Task<StepReferenceElement?> GetStepReferenceAsync(TextDocumentIdentifier textDocument, Position position, CancellationToken cancelToken)
         {
             var pos = await GetPositionInfoAsync(textDocument, position, cancelToken);
 
-            if(TryGetStepReference(pos, out var stepRef))
+            if (TryGetStepReference(pos, out var stepRef))
             {
                 return stepRef;
             }
@@ -68,8 +109,18 @@ namespace AutoStep.LanguageServer
             return null;
         }
 
-        protected StepDefinition GetStepDefinition(StepReferenceElement reference)
+        /// <summary>
+        /// Get the step definition bound to a step reference (or null if not bound).
+        /// </summary>
+        /// <param name="reference">The step reference.</param>
+        /// <returns>The bound step definition (if there is one).</returns>
+        protected static StepDefinition? GetStepDefinition(StepReferenceElement reference)
         {
+            if (reference is null)
+            {
+                throw new System.ArgumentNullException(nameof(reference));
+            }
+
             return reference.Binding?.Definition;
         }
     }
