@@ -12,6 +12,7 @@ using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Test;
 using AutoStep.Extensions;
 using AutoStep.Language;
+using AutoStep.Language.Interaction;
 using AutoStep.Language.Test.Matching;
 using AutoStep.LanguageServer.Tasks;
 using AutoStep.Projects;
@@ -363,6 +364,7 @@ namespace AutoStep.LanguageServer
             return ProjectContext.Project.Compiler.GetPossibleStepDefinitions(stepRef);
         }
 
+        /// <inheritdoc/>
         public InteractionMethod? GetMethodDefinition(MethodCallElement methodCall, InteractionDefinitionElement containingElement)
         {
             if (methodCall is null)
@@ -375,6 +377,24 @@ namespace AutoStep.LanguageServer
                 throw new ArgumentNullException(nameof(containingElement));
             }
 
+            var methodTable = GetMethodTableForInteractionDefinition(containingElement);
+
+            if (methodTable is object && methodTable.TryGetMethod(methodCall.MethodName, out var definition))
+            {
+                return definition;
+            }
+
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public MethodTable? GetMethodTableForInteractionDefinition(InteractionDefinitionElement containingElement)
+        {
+            if (containingElement is null)
+            {
+                throw new ArgumentNullException(nameof(containingElement));
+            }
+
             if (ProjectContext is object)
             {
                 // Get the method table.
@@ -382,12 +402,7 @@ namespace AutoStep.LanguageServer
 
                 if (interactionSet?.ExtendedMethodReferences is object)
                 {
-                    var methodTable = interactionSet.ExtendedMethodReferences.GetMethodTableForElement(containingElement);
-
-                    if (methodTable is object && methodTable.TryGetMethod(methodCall.MethodName, out var definition))
-                    {
-                        return definition;
-                    }
+                    return interactionSet.ExtendedMethodReferences.GetMethodTableForElement(containingElement);
                 }
             }
 

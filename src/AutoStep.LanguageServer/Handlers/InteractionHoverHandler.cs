@@ -71,34 +71,28 @@ namespace AutoStep.LanguageServer
 
                 if (methodDef is object)
                 {
-                    InteractionMethod? activeMethod = methodDef;
-                    string? documentation = null;
-
-                    // Use the most derived method definition that has a documentation block.
-                    while (string.IsNullOrWhiteSpace(documentation) && activeMethod is FileDefinedInteractionMethod definedMethod)
-                    {
-                        documentation = definedMethod.MethodDefinition.Documentation;
-                        activeMethod = definedMethod.OverriddenMethod;
-                    }
+                    string? documentation = GetMethodDocumentation(methodDef);
 
                     var strBuilder = new StringBuilder();
 
                     AddSignature(methodDef, strBuilder);
 
-                    if (!string.IsNullOrWhiteSpace(documentation))
-                    {
-                        strBuilder.Append(Environment.NewLine);
-                        strBuilder.Append(Environment.NewLine);
-                        strBuilder.Append(documentation);
-                    }
+                    var signatureContent = new MarkedString(strBuilder.ToString());
 
-                    var markupContent = new MarkupContent();
-                    markupContent.Value = strBuilder.ToString();
-                    markupContent.Kind = supportsMarkdown ? MarkupKind.Markdown : MarkupKind.PlainText;
+                    MarkedStringsOrMarkupContent content;
+
+                    if (string.IsNullOrEmpty(documentation))
+                    {
+                        content = new MarkedStringsOrMarkupContent(signatureContent);
+                    }
+                    else
+                    {
+                        content = new MarkedStringsOrMarkupContent(signatureContent, documentation);
+                    }
 
                     return new Hover
                     {
-                        Contents = new MarkedStringsOrMarkupContent(markupContent),
+                        Contents = content,
                         Range = methodCall.Range(),
                     };
                 }
@@ -111,7 +105,7 @@ namespace AutoStep.LanguageServer
         {
             if (supportsMarkdown)
             {
-                builder.Append("``");
+                builder.AppendLine("```");
             }
 
             builder.Append(method.Name);
@@ -150,58 +144,9 @@ namespace AutoStep.LanguageServer
 
             if (supportsMarkdown)
             {
-                builder.Append("``");
+                builder.AppendLine();
+                builder.Append("```");
             }
-        }
-
-        private Hover? GetHoverResult(StepReferenceElement stepRef, StepDefinition stepDef)
-        {
-            var definitionDescription = stepDef.Definition?.Description;
-
-            // Include argument values in the description.
-            if (stepRef.Binding?.Arguments.Length > 0)
-            {
-                var builder = new StringBuilder(definitionDescription);
-
-                if (!string.IsNullOrWhiteSpace(definitionDescription))
-                {
-                    builder.AppendLine(supportsMarkdown ? "  " : string.Empty);
-                }
-
-                if (supportsMarkdown)
-                {
-                    builder.AppendLine("**Arguments**  ");
-                }
-                else
-                {
-                    builder.AppendLine("Arguments");
-                }
-
-                foreach (var arg in stepRef.Binding.Arguments)
-                {
-                    builder.Append(arg.ArgumentName);
-                    builder.Append(": ");
-                    builder.Append(arg.GetRawText(stepRef.RawText!));
-                    builder.AppendLine("  ");
-                }
-
-                definitionDescription = builder.ToString();
-            }
-
-            if (!string.IsNullOrEmpty(definitionDescription))
-            {
-                var markupContent = new MarkupContent();
-                markupContent.Value = definitionDescription;
-                markupContent.Kind = supportsMarkdown ? MarkupKind.Markdown : MarkupKind.PlainText;
-
-                return new Hover
-                {
-                    Contents = new MarkedStringsOrMarkupContent(markupContent),
-                    Range = stepRef.Range(),
-                };
-            }
-
-            return null;
         }
 
         /// <inheritdoc/>
