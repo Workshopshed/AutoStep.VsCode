@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoStep.Definitions.Interaction;
+using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Test;
+using AutoStep.Language.Interaction;
 using AutoStep.Language.Test.Matching;
 using AutoStep.Projects;
 
@@ -94,5 +97,20 @@ namespace AutoStep.LanguageServer
         /// <param name="stepRef">The step reference.</param>
         /// <returns>The set of matches.</returns>
         IEnumerable<IMatchResult> GetPossibleStepDefinitions(StepReferenceElement stepRef);
+
+        /// <summary>
+        /// Get a method definition for a given method call and containing interaction definition element.
+        /// </summary>
+        /// <param name="methodCall">The method call.</param>
+        /// <param name="containingElement">The containing interaction element.</param>
+        /// <returns>The found method definition (or null, if there is no matching definition).</returns>
+        InteractionMethod? GetMethodDefinition(MethodCallElement methodCall, InteractionDefinitionElement containingElement);
+
+        /// <summary>
+        /// Gets the inc-scope method table for a given interaction definition (component/trait).
+        /// </summary>
+        /// <param name="containingElement">The containing element.</param>
+        /// <returns>The method table.</returns>
+        MethodTable? GetMethodTableForInteractionDefinition(InteractionDefinitionElement containingElement);
     }
 }

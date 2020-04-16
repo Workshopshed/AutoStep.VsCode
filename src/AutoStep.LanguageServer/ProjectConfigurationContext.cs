@@ -1,5 +1,6 @@
 ﻿using System;
 using AutoStep.Extensions;
+using AutoStep.Extensions.Abstractions;
 using AutoStep.Projects;
 using AutoStep.Projects.Files;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +20,7 @@ namespace AutoStep.LanguageServer
         /// <param name="testFileSet">The set of test files.</param>
         /// <param name="interactionFileSet">The set of interaction files.</param>
         /// <param name="extensions">The loaded extensions.</param>
-        public ProjectConfigurationContext(Project project, IConfiguration loadedConfiguration, IFileSet testFileSet, IFileSet interactionFileSet, IExtensionSet extensions)
+        public ProjectConfigurationContext(Project project, IConfiguration loadedConfiguration, IFileSet testFileSet, IFileSet interactionFileSet, ILoadedExtensions<IExtensionEntryPoint> extensions)
         {
             Project = project;
             LoadedConfiguration = loadedConfiguration;
@@ -51,7 +52,7 @@ namespace AutoStep.LanguageServer
         /// <summary>
         /// Gets the set of loaded extensions.
         /// </summary>
-        public IExtensionSet Extensions { get; private set; }
+        public ILoadedExtensions<IExtensionEntryPoint> Extensions { get; private set; }
 
         /// <inheritdoc/>
         public void Dispose()

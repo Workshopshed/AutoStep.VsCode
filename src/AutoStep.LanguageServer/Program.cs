@@ -52,6 +52,8 @@ namespace AutoStep.LanguageServer
                     .WithHandler<TestCompletionHandler>()
                     .WithHandler<TestDefinitionHandler>()
                     .WithHandler<TestHoverHandler>()
+                    .WithHandler<InteractionHoverHandler>()
+                    .WithHandler<InteractionCompletionHandler>()
                     .WithHandler<AutoStepHandler>()
                     .WithServices(services =>
                     {

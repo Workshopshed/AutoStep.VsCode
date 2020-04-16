@@ -7,8 +7,8 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="AutoStep" Version="1.0.0-develop.277" />
-        <PackageReference Include="AutoStep.Extensions" Version="1.0.0-develop.31" />
+        <PackageReference Include="AutoStep" Version="1.0.0-develop.294" />
+        <PackageReference Include="AutoStep.Extensions" Version="1.0.0-develop.38" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.2" />
         <PackageReference Include="OmniSharp.Extensions.LanguageServer" Version="0.15.0" />
         <PackageReference Include="Serilog" Version="2.9.0" />
@@ -26,6 +26,11 @@
     </ItemGroup>
     
     <ItemGroup>
+      <Compile Update="ConfigurationMessages.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>ConfigurationMessages.resx</DependentUpon>
+      </Compile>
       <Compile Update="Tasks\TaskMessages.Designer.cs">
         <DesignTime>True</DesignTime>
         <AutoGen>True</AutoGen>
@@ -39,6 +44,10 @@
     </ItemGroup>
     
     <ItemGroup>
+      <EmbeddedResource Update="ConfigurationMessages.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>ConfigurationMessages.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
       <EmbeddedResource Update="Tasks\TaskMessages.resx">
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>TaskMessages.Designer.cs</LastGenOutput>

@@ -1,11 +1,13 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Linq;
+using AutoStep.Extensions;
+using Microsoft.Extensions.Configuration;
 
 namespace AutoStep.LanguageServer
 {
     /// <summary>
     /// Extensions to the configuration file that help access common configuration properties.
     /// </summary>
-    public static class ConfigurationExtensions
+    internal static class ConfigurationExtensions
     {
         /// <summary>
         /// Gets the set of test file globs.
@@ -25,6 +27,23 @@ namespace AutoStep.LanguageServer
         public static string[] GetInteractionFileGlobs(this IConfiguration config)
         {
             return config.GetValue("interactions", new[] { "**/*.asi" });
+        }
+
+        /// <summary>
+        /// Get the set of configured extensions.
+        /// </summary>
+        /// <param name="config">The configuration set.</param>
+        /// <returns>The set of extensions.</returns>
+        public static ExtensionConfiguration[] GetExtensionConfiguration(this IConfiguration config)
+        {
+            var all = config.GetSection("extensions").Get<ExtensionConfiguration[]>();
+
+            if (all.Any(p => string.IsNullOrWhiteSpace(p.Package)))
+            {
+                throw new ProjectConfigurationException(ConfigurationMessages.PackageIdRequired);
+            }
+
+            return all;
         }
     }
 }

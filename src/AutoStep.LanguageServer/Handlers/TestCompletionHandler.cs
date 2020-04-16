@@ -22,7 +22,7 @@ namespace AutoStep.LanguageServer
     /// <summary>
     /// Intellisense completion handler for test files.
     /// </summary>
-    public class TestCompletionHandler : StepReferenceAccessHandler, ICompletionHandler
+    public class TestCompletionHandler : TestHandler, ICompletionHandler
     {
         private readonly DocumentSelector documentSelector = new DocumentSelector(
             new DocumentFilter()
@@ -74,7 +74,7 @@ namespace AutoStep.LanguageServer
                 {
                     // We are in a step reference.
                     // Get the possible step definitions for this step.
-                    var possibleMatches = WorkspaceHost.GetPossibleStepDefinitions(stepRef);
+                    var possibleMatches = Workspace.GetPossibleStepDefinitions(stepRef);
 
                     var startInsertPos = request.Position;
                     Position endInsertPos = request.Position;

@@ -4,11 +4,16 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoStep.Definitions.Interaction;
+using AutoStep.Elements.Interaction;
 using AutoStep.Elements.Test;
 using AutoStep.Extensions;
+using AutoStep.Extensions.Abstractions;
 using AutoStep.Language;
+using AutoStep.Language.Interaction;
 using AutoStep.Language.Test.Matching;
 using AutoStep.LanguageServer.Tasks;
 using AutoStep.Projects;
@@ -360,6 +365,51 @@ namespace AutoStep.LanguageServer
             return ProjectContext.Project.Compiler.GetPossibleStepDefinitions(stepRef);
         }
 
+        /// <inheritdoc/>
+        public InteractionMethod? GetMethodDefinition(MethodCallElement methodCall, InteractionDefinitionElement containingElement)
+        {
+            if (methodCall is null)
+            {
+                throw new ArgumentNullException(nameof(methodCall));
+            }
+
+            if (containingElement is null)
+            {
+                throw new ArgumentNullException(nameof(containingElement));
+            }
+
+            var methodTable = GetMethodTableForInteractionDefinition(containingElement);
+
+            if (methodTable is object && methodTable.TryGetMethod(methodCall.MethodName, out var definition))
+            {
+                return definition;
+            }
+
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public MethodTable? GetMethodTableForInteractionDefinition(InteractionDefinitionElement containingElement)
+        {
+            if (containingElement is null)
+            {
+                throw new ArgumentNullException(nameof(containingElement));
+            }
+
+            if (ProjectContext is object)
+            {
+                // Get the method table.
+                var interactionSet = ProjectContext.Project.Compiler.GetCurrentInteractionSet();
+
+                if (interactionSet?.ExtendedMethodReferences is object)
+                {
+                    return interactionSet.ExtendedMethodReferences.GetMethodTableForElement(containingElement);
+                }
+            }
+
+            return null;
+        }
+
         private void InitiateBackgroundProjectLoad()
         {
             // Load the project in the background (in the task queue).
@@ -466,14 +516,17 @@ namespace AutoStep.LanguageServer
 
                 var newProject = new Project(true);
 
-                IExtensionSet? extensions = null;
+                ILoadedExtensions<IExtensionEntryPoint>? extensions = null;
 
                 try
                 {
                     extensions = await LoadExtensionsAsync(logFactory, config, cancelToken);
 
                     // Let our extensions extend the project.
-                    extensions.AttachToProject(config, newProject);
+                    foreach (var ext in extensions.ExtensionEntryPoints)
+                    {
+                        ext.AttachToProject(config, newProject);
+                    }
 
                     // Add any files from extension content.
                     // Treat the extension directory as two file sets (one for interactions, one for test).
@@ -531,9 +584,9 @@ namespace AutoStep.LanguageServer
             });
         }
 
-        private async Task<IExtensionSet> LoadExtensionsAsync(ILoggerFactory logFactory, IConfiguration projectConfig, CancellationToken cancelToken)
+        private async Task<ILoadedExtensions<IExtensionEntryPoint>> LoadExtensionsAsync(ILoggerFactory logFactory, IConfiguration projectConfig, CancellationToken cancelToken)
         {
-            var sourceSettings = new ExtensionSourceSettings(RootDirectoryInfo!.FullName);
+            var sourceSettings = new SourceSettings(RootDirectoryInfo!.FullName);
 
             var customSources = projectConfig.GetSection("extensionSources").Get<string[]>() ?? Array.Empty<string>();
 
@@ -543,7 +596,10 @@ namespace AutoStep.LanguageServer
                 sourceSettings.AppendCustomSources(customSources);
             }
 
-            var loaded = await ExtensionSetLoader.LoadExtensionsAsync(RootDirectoryInfo.FullName, sourceSettings, logFactory, projectConfig, cancelToken);
+            var extensionsDir = Path.Combine(RootDirectoryInfo!.FullName, ".autostep", "extensions");
+            var setLoader = new ExtensionSetLoader(extensionsDir, logFactory, "autostep");
+
+            var loaded = await setLoader.LoadExtensionsAsync<IExtensionEntryPoint>(sourceSettings, projectConfig.GetExtensionConfiguration(), false, cancelToken);
 
             return loaded;
         }
