@@ -1,13 +1,13 @@
-﻿using AutoStep.Extensions;
+﻿using System.Linq;
+using AutoStep.Extensions;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
 
 namespace AutoStep.LanguageServer
 {
     /// <summary>
     /// Extensions to the configuration file that help access common configuration properties.
     /// </summary>
-    public static class ConfigurationExtensions
+    internal static class ConfigurationExtensions
     {
         /// <summary>
         /// Gets the set of test file globs.
@@ -40,7 +40,7 @@ namespace AutoStep.LanguageServer
 
             if (all.Any(p => string.IsNullOrWhiteSpace(p.Package)))
             {
-                throw new ProjectConfigurationException("Extensions must have a specified Package Id.");
+                throw new ProjectConfigurationException(ConfigurationMessages.PackageIdRequired);
             }
 
             return all;

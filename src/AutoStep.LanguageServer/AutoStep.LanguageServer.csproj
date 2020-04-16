@@ -26,6 +26,11 @@
     </ItemGroup>
     
     <ItemGroup>
+      <Compile Update="ConfigurationMessages.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>ConfigurationMessages.resx</DependentUpon>
+      </Compile>
       <Compile Update="Tasks\TaskMessages.Designer.cs">
         <DesignTime>True</DesignTime>
         <AutoGen>True</AutoGen>
@@ -39,6 +44,10 @@
     </ItemGroup>
     
     <ItemGroup>
+      <EmbeddedResource Update="ConfigurationMessages.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>ConfigurationMessages.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
       <EmbeddedResource Update="Tasks\TaskMessages.resx">
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>TaskMessages.Designer.cs</LastGenOutput>
